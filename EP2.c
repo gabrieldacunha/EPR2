@@ -20,6 +20,8 @@
 double* criar_vetor(int N);
 int* criar_vetor_int(int N);
 double complex* criar_vetor_complexo(int N);
+void imprimir_vetor(double* vetor, int N);
+void imprimir_complexo(double complex *c, int N);
 int tamanho_arquivo(char *nome_arquivo, int *channels);
 int ler_arquivo_dat(char *nome_arquivo, int N, double complex *tempo, double complex *f, double complex *f2);
 void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int channels, int N, double complex *tempo, double complex *f, double complex *f2);
@@ -34,9 +36,7 @@ void passa_baixas(double complex *c, int N, int freq_corte);
 void passa_bandas(double complex *c, int N, int freq1, int freq2);
 
 /* >>>>>>>>>>> Testes iniciais <<<<<<<<<<< */
-void teste_inicial_a();
-void teste_inicial_b();
-void teste_inicial_c();
+void executar_teste(int tipo);
 
 /* ------------------------------------------------------------------------------------- */
 
@@ -67,15 +67,15 @@ int main() {
     switch(tipo_problema) {
 
         case 1:
-			teste_inicial_a();
+			executar_teste(1);
             break;
 
         case 2:
-        	teste_inicial_b();
+        	executar_teste(2);
             break;
 
         case 3:
-        	teste_inicial_c();
+        	executar_teste(3);
             break;
 
         case 4:
@@ -179,6 +179,31 @@ double complex* criar_vetor_complexo(int N) {
     return vetor;
 }
 
+void imprimir_vetor(double* vetor, int N) {
+    /* Impressao de vetor de doubles */
+
+    int i;
+
+    for(i = 0; i < N; i++){
+        if(vetor[i] >= 0) {
+            printf("|  %.3e |\n", vetor[i]);
+        }
+        else {
+            printf("| %.3e |\n", vetor[i]);
+        }
+    }
+    printf("\n");
+}
+
+void imprimir_complexo(double complex *c, int N) { 
+	/* Impressao de vetor de complexos */
+
+    int i;
+
+    for(i = 0; i < N; i++){
+        printf("|%.2f %+.2fi|\n", creal(c[i]), cimag(c[i]));
+    }
+}
 
 int tamanho_arquivo(char *nome_arquivo, int *channels) {
 	int n = 0;
@@ -441,237 +466,116 @@ void passa_bandas(double complex *c, int N, int freq1, int freq2) {
 
 
 /* >>>>>>>>>>>>>>>>>>>>>>>> Testes iniciais <<<<<<<<<<<<<<<<<<<<<<<< */
-void teste_inicial_a() {
+
+void executar_teste(int tipo) {
 	/* Documentacao: http://people.sc.fsu.edu/~jburkardt/c_src/fftpack4/fftpack4.html
 	* Baseado no teste 4 em: http://people.sc.fsu.edu/~jburkardt/c_src/fftpack4/fftpack4_prb.c
 	*/
-	int n = 4;
+	int n;
 	int nh;
-	int i;
-
+	int i, x;
 	double *a;
-	double a0;
+	double a0;  
+	double funcao;      
 	double *b;
 	double complex *c;
 	double complex *c_linha;
-
 	double complex *amostras;
 	double complex *amostras_valores;
 	double *amostras_valores_2;
-
-
-	// double amostras[n-1];
-	// double amostras_valores[n-1];
-
 	int *ifac;
 	double *wsave;
 
-	amostras = criar_vetor_complexo(n);
-	amostras_valores = criar_vetor_complexo(n);
+	switch(tipo) {
+		case 1:
+			n = 4;
 
-	amostras[0] = 0;
-	amostras[1] = M_PI / 2;
-	amostras[2] = M_PI;
-	amostras[3] = 3 * M_PI / 2;
+			amostras = criar_vetor_complexo(n);
+			amostras[0] = 0;
+   			amostras[1] = M_PI / 2;
+    		amostras[2] = M_PI;
+    		amostras[3] = 3 * M_PI / 2;
 
-	amostras_valores[0] = 5;
-	amostras_valores[1] = -1;
-	amostras_valores[2] = 3;
-	amostras_valores[3] = 1;
+    		amostras_valores = criar_vetor_complexo(n);
+    		amostras_valores[0] = 5;
+		    amostras_valores[1] = -1;
+		    amostras_valores[2] = 3;
+		    amostras_valores[3] = 1;
+
+		    amostras_valores_2 = criar_vetor(n);  /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
+		    amostras_valores_2[0] = 5;
+		    amostras_valores_2[1] = -1;
+		    amostras_valores_2[2] = 3;
+		    amostras_valores_2[3] = 1;
+			break;
+
+		case 2:
+			n = 8;
+			amostras_valores = criar_vetor_complexo(n);
+
+			amostras_valores[0] = 6;
+		    amostras_valores[1] = 2;
+		    amostras_valores[2] = 5;
+		    amostras_valores[3] = 2;
+		    amostras_valores[4] = 11;
+		    amostras_valores[5] = 2;
+		    amostras_valores[6] = 8;
+		    amostras_valores[7] = 8;
+
+		    amostras_valores_2 = criar_vetor(n); /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
+	    	amostras_valores_2[0] = 6;
+			amostras_valores_2[1] = 2;
+			amostras_valores_2[2] = 5;
+			amostras_valores_2[3] = 2;
+			amostras_valores_2[4] = 11;
+			amostras_valores_2[5] = 2;
+			amostras_valores_2[6] = 8;
+			amostras_valores_2[7] = 8;
+			break;
+
+		case 3:
+			n = 1024;
+			amostras_valores = criar_vetor_complexo(n);
+			amostras_valores_2 = criar_vetor(n); /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
+			for(i = 0; i < n; i++) {
+		        x = (i * M_PI) / 512;
+
+		        funcao = 0;
+		        funcao = 10 * sin(x);
+		        funcao += 7 * cos(30 * x);
+		        funcao += 11 * sin(352 * x);
+		        funcao -= 8 * cos(711 * x);
+		        amostras_valores[i] = funcao;
+		        amostras_valores_2[i] = funcao;
+		    }
+			break;
+		default:
+			break;
+	}
 
 	c = criar_vetor_complexo(n);
 
-	printf("fftrec:\n");
+	printf("Amostra original:\n");
+    imprimir_complexo(amostras_valores, n);
 
-	// printf("amostra original = (");
-	// for(i = 0; i < n; i++) {
-	// 	printf("%.2f", amostras_valores[i]);
-	// 	if(i != n - 1) {
-	// 		printf(", ");
-	// 	}
-	// }
-	// printf(")\n");
+	printf("Transformada de Fourier direta:\n");
 
+    printf("Antitransformada de Fourier direta:\n");
+
+	printf("FFT Recursiva - Transformada - Vetor de coeficientes:\n");
 	fftrec(c, amostras_valores, n, true);  // Transformada direta pela fftrec
 
-	// prints
-	printf("c = (");
-	for(i = 0; i < n; i++) {
-		printf("%.2f %+.2fi", creal(c[i]) / n, cimag(c[i]) / n);
-		if(i != n - 1) {
-			printf(", ");
-		}
-	}
-	printf(")\n");
-
-	fftrec(c, amostras_valores, n, false);  // anti-transformada pela fftrec
-
-	// prints
-	printf("amostra anti-transformada = (");
-	for(i = 0; i < n; i++) {
-		printf("%.2f", amostras_valores[i]);
-		if(i != n - 1) {
-			printf(", ");
-		}
-	}
-	printf(")\n\n");
-
-	/* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
-	amostras_valores_2 = criar_vetor(n);
-	amostras_valores_2[0] = 5;
-	amostras_valores_2[1] = -1;
-	amostras_valores_2[2] = 3;
-	amostras_valores_2[3] = 1;
-
-	wsave = criar_vetor(3 * n + 15);
-	ifac = criar_vetor_int(8);
-
-	ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
-
-	nh = n / 2;
-	a = criar_vetor(nh);
-	b = criar_vetor(nh);
-	c_linha = criar_vetor_complexo(n);
-
-	ezfftf(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  //transformada direta de fourier
-
-	// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
-	c_linha[0] = a0 + 0 * I;
-	c_linha[nh] = a[nh-1];
-
-	for(i = 1; i < nh; i++) {
-		c_linha[i] = (a[i-1] - (I * b[i-1]))/2;
-		c_linha[n-i] = (a[i-1] + (I * b[i-1]))/2;
-	}
-
-	printf("FFTPACK4:\n");
-
-	// prints
-	printf("amostra original = (");
-	for(i = 0; i < n; i++) {
-		printf("%.2f", amostras_valores[i]);
-		if(i != n - 1) {
-			printf(", ");
-		}
-	}
-	printf(")\n");
-
-	// prints
-	printf("c = (");
-	for(i = 0; i < n; i++) {
-		printf("%.2f %+.2fi", creal(c_linha[i]), cimag(c_linha[i]));
-		if(i != n - 1) {
-			printf(", ");
-		}
-	}
-	printf(")\n");
-
-	ezfftb(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  //anti-transformada de fourier
-
-	// prints
-	printf("amostra anti-transformada = (");
-	for(i = 0; i < n; i++) {
-		printf("%.2f", amostras_valores_2[i]);
-		if(i != n - 1) {
-			printf(", ");
-		}
-	}
-	printf(")\n");
-
-	// desalocacao de vetores
-	free(a);
-	free(b);
-	free(c);
-	free(c_linha);
-	free(amostras);
-	free(amostras_valores);
-	free(amostras_valores_2);
-	free(ifac);
-	free(wsave);
-}
-
-
-void teste_inicial_b() {
-	/* Documentacao: http://people.sc.fsu.edu/~jburkardt/c_src/fftpack4/fftpack4.html
-	* Baseado no teste 4 em: http://people.sc.fsu.edu/~jburkardt/c_src/fftpack4/fftpack4_prb.c
-	*/
-	int n = 8;
-	int nh;
-	int i;
-
-	double *a;
-	double a0;       
-	double *b;
-	double complex *c;
-	double complex *c_linha;
-
-	double complex *amostras;
-	double complex *amostras_valores;
-	double *amostras_valores_2;
-
-	int *ifac;
-	double *wsave;
-
-	amostras = criar_vetor_complexo(n);
-	amostras_valores = criar_vetor_complexo(n);
-
-	amostras_valores[0] = 6;
-	amostras_valores[1] = 2;
-	amostras_valores[2] = 5;
-	amostras_valores[3] = 2;
-	amostras_valores[4] = 11;
-	amostras_valores[5] = 2;
-	amostras_valores[6] = 8;
-	amostras_valores[7] = 8;
-
-	c = criar_vetor_complexo(n);
-
-	printf("fftrec:\n");
-
-	// printf("amostra original = (");
-	// for(i = 0; i < n; i++) {
-	// 	printf("%.2f", amostras_valores[i]);
-	// 	if(i != n - 1) {
-	// 		printf(", ");
-	// 	}
-	// }
-	// printf(")\n");
-
-	fftrec(c, amostras_valores, n, true);  // Transformada direta pela fftrec
-
-	printf("c = (");
-	for(i = 0; i < n; i++) {
-		printf("%.2f %+.2fi", creal(c[i]) / n, cimag(c[i]) / n);
-		if(i != n - 1) {
-			printf(", ");
-		}
-	}
-	printf(")\n");
+	for(i = 0; i < n; i++){
+        printf("|%.2f %+.2fi|\n", creal(c[i]) / n, cimag(c[i]) / n);
+    }
 
 	fftrec(c, amostras_valores, n, false);  // Anti-transformada pela fftrec
+	
+	printf("FFT Recursiva - Antitransformada\n");
+    imprimir_complexo(amostras_valores, n);
 
-	printf("amostra anti-transformada = (");
-	for(i = 0; i < n; i++) {
-		printf("%.2f", amostras_valores[i]);
-		if(i != n - 1) {
-			printf(", ");
-		}
-	}
-	printf(")\n\n");
-
-	/* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
-
-	amostras_valores_2 = criar_vetor(n);
-
-	amostras_valores_2[0] = 6;
-	amostras_valores_2[1] = 2;
-	amostras_valores_2[2] = 5;
-	amostras_valores_2[3] = 2;
-	amostras_valores_2[4] = 11;
-	amostras_valores_2[5] = 2;
-	amostras_valores_2[6] = 8;
-	amostras_valores_2[7] = 8;
-
+    printf("FFTPACK4:\n");
+	
 	wsave = criar_vetor(3 * n + 15);
 	ifac = criar_vetor_int(8);
 
@@ -693,179 +597,14 @@ void teste_inicial_b() {
 		c_linha[n-i] = (a[i-1] + (I * b[i-1]))/2;
 	}
 
-	printf("FFTPACK4:\n");
-
-	printf("amostra original = (");
-	for(i = 0; i < n; i++) {
-		printf("%.2f", amostras_valores[i]);
-		if(i != n - 1) {
-			printf(", ");
-		}
-	}
-	printf(")\n");
-
-	printf("c = (");
-	for(i = 0; i < n; i++) {
-		printf("%.2f %+.2fi", creal(c_linha[i]), cimag(c_linha[i]));
-		if(i != n - 1) {
-			printf(", ");
-		}
-	}
-	printf(")\n");
+	printf("Vetor de coeficientes de Fourier:\n");
+    imprimir_complexo(c_linha, n);
 
 	ezfftb(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  // anti-transformada de fourier
 
-	printf("amostra anti-transformada = (");
-	for(i = 0; i < n; i++) {
-		printf("%.2f", amostras_valores_2[i]);
-		if(i != n - 1) {
-			printf(", ");
-		}
-	}
-	printf(")\n");
+	printf("Amostra anti-transformada:\n");
+    imprimir_vetor(amostras_valores_2, n);
 
-	free(a);
-	free(b);
-	free(c);
-	free(c_linha);
-	free(amostras);
-	free(amostras_valores);
-	free(amostras_valores_2);
-	free(ifac);
-	free(wsave);
-}
-
-
-void teste_inicial_c() {
-	/* Documentacao: http://people.sc.fsu.edu/~jburkardt/c_src/fftpack4/fftpack4.html
-	* Baseado no teste 4 em: http://people.sc.fsu.edu/~jburkardt/c_src/fftpack4/fftpack4_prb.c
-	*/
-	int n = 1024;
-	int nh;
-	int i;
-	int x;
-	double funcao;
-
-	double *a;
-	double a0;
-	double *b;
-	double complex *c;
-	double complex *c_linha;
-
-	double complex *amostras;
-	double complex *amostras_valores;
-	double *amostras_valores_2;
-
-	// double amostras[n-1];
-	// double amostras_valores[n-1];
-
-	int *ifac;
-	double *wsave;
-
-	amostras_valores = criar_vetor_complexo(n);
-	
-	for(i = 0; i < n; i++) {
-		x = (i * M_PI) / 512;
-
-		funcao = 0;
-		funcao = 10 * sin(x);
-		funcao += 7 * cos(30 * x);
-		funcao += 11 * sin(352 * x);
-		funcao -= 8 * cos(711 * x);
-		amostras_valores[i] = funcao;
-	}
-
-	c = criar_vetor_complexo(n);
-
-	printf("******************* fftrec: *******************\n");
-
-	// printf("amostra original = (");
-	// for(i = 0; i < n; i++) {
-	// 	printf("%.2f", amostras_valores[i]);
-	// 	if(i != n - 1) {
-	// 		printf(", ");
-	// 	}
-	// }
-	// printf(")\n");
-
-	fftrec(c, amostras_valores, n, true);  // Transformada direta pela fftrec
-
-	printf(">>>>>>>>>>>>>>>>>>> c:\n");
-	for(i = 0; i < n; i++) {
-		printf("%d: %.2f %+.2fi\n", i + 1, creal(c[i]) / n, cimag(c[i]) / n);
-	}
-	printf("\n");
-
-	fftrec(c, amostras_valores, n, false);  // Anti-transformada direta pela fftrec
-
-	printf(">>>>>>>>>>>>>>>>>>> amostra anti-transformada:\n");
-	for(i = 0; i < n; i++) {
-		printf("%d: %.2f\n", i + 1, amostras_valores[i]);
-	}
-	printf("\n\n");
-
-	/* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
-
-	amostras_valores_2 = criar_vetor(n);
-	
-	for(i = 0; i < n; i++) {
-		x = (i * M_PI) / 512;
-
-		funcao = 0;
-		funcao = 10 * sin(x);
-		funcao += 7 * cos(30 * x);
-		funcao += 11 * sin(352 * x);
-		funcao -= 8 * cos(711 * x);
-		amostras_valores_2[i] = funcao;
-	}
-
-	wsave = criar_vetor(3 * n + 15);
-	ifac = criar_vetor_int(8);
-
-	ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
-
-	nh = n / 2;
-	a = criar_vetor(nh);
-	b = criar_vetor(nh);
-	c_linha = criar_vetor_complexo(n);
-
-	ezfftf(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  // transformada direta de fourier
-
-	// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
-	c_linha[0] = a0 + 0 * I;
-	c_linha[nh] = a[nh-1];
-
-	for(i = 1; i < nh; i++) {
-		c_linha[i] = (a[i-1] - (I * b[i-1]))/2;
-		c_linha[n-i] = (a[i-1] + (I * b[i-1]))/2;
-	}
-
-	printf("******************* FFTPACK4: *******************\n");
-
-	// prints
-	printf(">>>>>>>>>>>>>>>>>>> amostra original:\n");
-	for(i = 0; i < n; i++) {
-		printf("%d: %.2f\n", i + 1, amostras_valores[i]);
-	}
-	printf("\n");
-
-	// prints
-	printf(">>>>>>>>>>>>>>>>>>>c:\n");
-	for(i = 0; i < n; i++) {
-		printf("%d: %.2f %+.2fi\n", i + 1, creal(c_linha[i]), cimag(c_linha[i]));
-	}
-	printf("\n");
-
-	ezfftb(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  // anti-transformada de fourier
-
-	// prints
-	printf(">>>>>>>>>>>>>>>>>>>amostra anti-transformada\n");
-	for(i = 0; i < n; i++) {
-		printf("%d: %.2f\n", i + 1, amostras_valores_2[i]);
-	}
-	printf("\n");
-
-	// desalocacao de vetores
 	free(a);
 	free(b);
 	free(c);
@@ -874,4 +613,9 @@ void teste_inicial_c() {
 	free(amostras_valores_2);
 	free(ifac);
 	free(wsave);
+	if (tipo == 1) {
+		free(amostras);
+	}
 }
+
+
