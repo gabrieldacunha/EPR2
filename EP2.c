@@ -19,7 +19,6 @@
 /* >>>>>>>>>>> Funcoes basicas <<<<<<<<<<< */
 double* criarVetor(int N);
 int* criarVetorInt(int N);
-double* criarVetorComplexo(int N);
 void teste_complexos();
 int tamanho_arquivo(char *nome_arquivo, int *channels);
 int ler_arquivo_dat(char *nome_arquivo, int N, double complex *tempo, double complex *f, double complex *f2);
@@ -27,6 +26,7 @@ void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int channels, int
 
 /* >>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<< */
 void fftrec(double complex *c, double complex *f, int N, bool direta);
+void filtro(double complex *c, int N, double freq_corte, char *tipo);
 
 /* >>>>>>>>>>> Testes iniciais <<<<<<<<<<< */
 void teste_inicial_a();
@@ -36,6 +36,7 @@ void teste_inicial_c();
 /* ------------------------------------------------------------------------------------- */
 
 int main() {
+	// Declaracao de variaveis
 	int N, tipo_problema, tipo_transformada, escrever_arquivo;
 	char nome_arquivo[128];
 	bool direta;
@@ -90,17 +91,21 @@ int main() {
 		    	direta = true;
 		    }
 
+		    // N = o numero total de amostras. Usado para a alocacao de vetores
 			N = tamanho_arquivo(nome_arquivo, &channels);
 
 			printf("N = %d\n", N);
 
+			// Alocacao de vetores
 			c = criarVetorComplexo(2*N);
 			tempo = criarVetorComplexo(2*N);
 			f = criarVetorComplexo(2*N);
 			f2 = criarVetorComplexo(2*N);
 
+			// Leitura de fato do arquivo
 			sample_rate = ler_arquivo_dat(nome_arquivo, N, tempo, f, f2);
 
+			// Se houver 2 canais, a analise eh feita em ambos
 			if(channels == 1) {
 				fftrec(c, f, N, direta);
 			}
@@ -119,9 +124,11 @@ int main() {
 		    	printf("Digite o nome do arquivo a ser escrito (com a terminacao .dat): ");
 		    	scanf("%s", nome_arquivo);
 
+		    	// Escrever resultado da analise no arquivo
 		    	escrever_arquivo_dat(nome_arquivo, sample_rate, channels, N, tempo, f, f2);
 		    }
 
+		    // Desalocacao de memoria
 			free(c);
 			free(tempo);
 			free(f);
@@ -139,6 +146,7 @@ int main() {
 
 
 /* >>>>>>>>>>>>>>>>>>>>>>>> Funcoes basicas <<<<<<<<<<<<<<<<<<<<<<<< */
+
 double* criarVetor(int N) {
     /* Cria um vetor de N doubles. */
     double *vetor;
@@ -157,7 +165,7 @@ int* criarVetorInt(int N) {
     return vetor;
 }
 
-double* criarVetorComplexo(int N) {
+double complex* criarVetorComplexo(int N) {
     /* Cria um vetor de N doubles complexos. */
     double complex *vetor;
 
@@ -165,8 +173,6 @@ double* criarVetorComplexo(int N) {
 
     return vetor;
 }
-
-
 
 void teste_complexos() {
 	/* Como usar numeros complexos em C: https://stackoverflow.com/questions/6418807/how-to-work-with-complex-numbers-in-c# */
@@ -197,7 +203,7 @@ void teste_complexos() {
 int tamanho_arquivo(char *nome_arquivo, int *channels) {
 	int n = 0;
 	int var_temp1;
-	double var_temp2, var_temp3, var_temp4;
+	double var_temp2, var_temp3, var_temp4;  // estas variaveis nao tem funcao de fato
 	char linha[512];
 
 	FILE *arquivo = fopen(nome_arquivo, "r");
@@ -207,10 +213,11 @@ int tamanho_arquivo(char *nome_arquivo, int *channels) {
         exit(EXIT_FAILURE);
     }
 
+    // Passando pelas duas primeiras linhas
     fscanf(arquivo, "%*[^0-9]%d", &var_temp1);
     fscanf(arquivo, "%*[^0-9]%d", &var_temp1);
 
-    *channels = var_temp1;
+    *channels = var_temp1; // retornando numero de canais por meio de um ponteiro
 
     if(*channels == 1) {
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { /* pega uma linha de até 512 caracteres. Null quando acabar as linhas */
@@ -218,7 +225,7 @@ int tamanho_arquivo(char *nome_arquivo, int *channels) {
 	        sscanf(linha, "%lf %lf", &var_temp2, &var_temp3);
 
 	        if(var_temp2 != 0) {
-	        	n++;
+	        	n++;  // contando o numero de dados
 	        }
         }
     }
@@ -264,10 +271,10 @@ int ler_arquivo_dat(char *nome_arquivo, int N, double complex *tempo, double com
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { /* pega uma linha de até 512 caracteres. Null quando acabar as linhas */
 	        sscanf(linha, "%lf %lf", &var_tempo, &var_f);
 
-	        tempo[i] = var_tempo;
-	        f[i] = var_f;
+	        tempo[i] = var_tempo;  // vetor de tempo na amostragem
+	        f[i] = var_f;  // amplitude do sinal
 
-	        i++;
+	        i++;  // posicao de alocacao no vetor acompanha a passagem de linhas
         }
     }
 
@@ -275,11 +282,11 @@ int ler_arquivo_dat(char *nome_arquivo, int N, double complex *tempo, double com
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { /* pega uma linha de até 512 caracteres. Null quando acabar as linhas */
 	        sscanf(linha, "%lf %lf %lf", &var_tempo, &var_f, &var_f2);
 
-	        tempo[i] = var_tempo;
-	        f[i] = var_f;
-	        f2[i] = var_f2;
+	        tempo[i] = var_tempo;  // vetor de tempo na amostragem
+	        f[i] = var_f;  // amplitude do sinal do canal 1
+	        f2[i] = var_f2;  // amplitude do sinal do canal 2
 
-	        i++;
+	        i++;  // posicao de alocacao no vetor acompanha a passagem de linhas
 	    }
     }
 
@@ -297,15 +304,19 @@ void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int channels, int
 	int i;
 
 	FILE *arquivo = fopen(nome_arquivo, "r");
+
+	// Escreve a sample rate e o numero de canais no mesmo formato dos arquivos .dat fornecidos
 	fprintf(arquivo, "; Sample Rate %d\n", sample_rate);
 	fprintf(arquivo, "; Channels %d\n", channels);
 
+	// Se houver apenas 1 canal, havera 2 colunas de dados
 	if(channels == 1) {
 		for(i = 0; i < N; i++) {
 			fprintf(arquivo, " %lf %lf\n", tempo[i], f[i]);
 		}
 	}
 
+	// Se houverem 2 canais, havera 3 colunas de dados
 	else if(channels == 2) {
 		for(i = 0; i < N; i++) {
 			fprintf(arquivo, " %lf %lf %lf\n", tempo[i], f[i], f2[i]);
@@ -320,6 +331,8 @@ void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int channels, int
 
 /* >>>>>>>>>>>>>>>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<<<<<<<<<<<<<<< */
 void fftrec(double complex *c, double complex *f, int N, bool direta) {
+	/* Funcao feita com base no pseudo-codigo do enunciado do EP2 */
+
 	double complex eij;
 	double complex *even, *odd, *fe, *fo;
 	int j; /* Variavel auxiliar*/
@@ -347,16 +360,36 @@ void fftrec(double complex *c, double complex *f, int N, bool direta) {
 		for(j = 0; j < N; j++) {
 
 			if(direta) {
-				// eij = cexp(- I * j * M_PI / N);  // https://stackoverflow.com/questions/2834865/computing-e-j-in-c
-				eij = cos(-1 * j * M_PI / N) + I * sin(-1 * j * M_PI / N);
+				eij = cexp(- I * j * M_PI / N);  // https://stackoverflow.com/questions/2834865/computing-e-j-in-c
 			}
 			else {
-				// eij = cexp(I * j * M_PI / N);
-				eij = cos(j * M_PI / N) + I * sin(j * M_PI / N);
+				eij = cexp(I * j * M_PI / N);
 			}
 
 			c[j] = even[j] + eij * odd[j];
 			c[j+N] = even[j] - eij * odd[j];
+		}
+	}
+}
+
+
+void filtro(double complex *c, int N, double freq_corte, char *tipo) {
+	/* Filtro passa-altas ou passa-baixas, dependendo do input do usuario
+	* Deixa passar apenas as frequencias "permitidas", zerando o valor das outras
+	*/
+
+	if(tipo == "passa baixas") {
+		for(int j = 0; j < N; j++) {
+			if(j > freq_corte) {
+				c[j] = 0;
+			}
+		}
+	}
+	else {
+		for(int j = 0; j < N; j++) {
+			if(j < freq_corte) {
+				c[j] = 0;
+			}
 		}
 	}
 }
@@ -399,7 +432,7 @@ void teste_inicial_a() {
 	amostras_valores[2] = 3;
 	amostras_valores[3] = 1;
 
-	c = criarVetorComplexo(N);
+	c = criarVetorComplexo(n);
 
 	printf("fftrec:\n");
 
@@ -412,8 +445,9 @@ void teste_inicial_a() {
 	// }
 	// printf(")\n");
 
-	fftrec(c, amostras_valores, n, true);
+	fftrec(c, amostras_valores, n, true);  // Transformada direta pela fftrec
 
+	// prints
 	printf("c = (");
 	for(i = 0; i < n; i++) {
 		printf("%.2f %+.2fi", creal(c[i]) / n, cimag(c[i]) / n);
@@ -423,8 +457,9 @@ void teste_inicial_a() {
 	}
 	printf(")\n");
 
-	fftrec(c, amostras_valores, n, false);
+	fftrec(c, amostras_valores, n, false);  // anti-transformada pela fftrec
 
+	// prints
 	printf("amostra anti-transformada = (");
 	for(i = 0; i < n; i++) {
 		printf("%.2f", amostras_valores[i]);
@@ -439,15 +474,16 @@ void teste_inicial_a() {
 	wsave = criarVetor(3 * n + 15);
 	ifac = criarVetorInt(8);
 
-	ezffti(&n, wsave, ifac);
+	ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
 
 	nh = n / 2;
 	a = criarVetor(nh);
 	b = criarVetor(nh);
 	c_linha = criarVetorComplexo(n);
 
-	ezfftf(&n, amostras_valores, &a0, a, b, wsave, ifac);
+	ezfftf(&n, amostras_valores, &a0, a, b, wsave, ifac);  //transformada direta de fourier
 
+	// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 	c_linha[0] = a0 + 0 * I;
 	c_linha[nh] = a[nh-1];
 
@@ -458,6 +494,7 @@ void teste_inicial_a() {
 
 	printf("FFTPACK4:\n");
 
+	// prints
 	printf("amostra original = (");
 	for(i = 0; i < n; i++) {
 		printf("%.2f", amostras_valores[i]);
@@ -467,6 +504,7 @@ void teste_inicial_a() {
 	}
 	printf(")\n");
 
+	// prints
 	printf("c = (");
 	for(i = 0; i < n; i++) {
 		printf("%.2f %+.2fi", creal(c_linha[i]), cimag(c_linha[i]));
@@ -476,8 +514,9 @@ void teste_inicial_a() {
 	}
 	printf(")\n");
 
-	ezfftb(&n, amostras_valores, &a0, a, b, wsave, ifac);
+	ezfftb(&n, amostras_valores, &a0, a, b, wsave, ifac);  //anti-transformada de fourier
 
+	// prints
 	printf("amostra anti-transformada = (");
 	for(i = 0; i < n; i++) {
 		printf("%.2f", amostras_valores[i]);
@@ -487,6 +526,7 @@ void teste_inicial_a() {
 	}
 	printf(")\n");
 
+	// desalocacao de vetores
 	free(a);
 	free(b);
 	free(c);
@@ -551,7 +591,7 @@ void teste_inicial_b() {
 	// }
 	// printf(")\n");
 
-	fftrec(c, amostras_valores, n, true);
+	fftrec(c, amostras_valores, n, true);  // Transformada direta pela fftrec
 
 	printf("c = (");
 	for(i = 0; i < n; i++) {
@@ -562,7 +602,7 @@ void teste_inicial_b() {
 	}
 	printf(")\n");
 
-	fftrec(c, amostras_valores, n, false);
+	fftrec(c, amostras_valores, n, false);  // Anti-transformada pela fftrec
 
 	printf("amostra anti-transformada = (");
 	for(i = 0; i < n; i++) {
@@ -578,15 +618,16 @@ void teste_inicial_b() {
 	wsave = criarVetor(3 * n + 15);
 	ifac = criarVetorInt(8);
 
-	ezffti(&n, wsave, ifac);
+	ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
 
 	nh = n / 2;
 	a = criarVetor(nh);
 	b = criarVetor(nh);
 	c_linha = criarVetorComplexo(n);
 
-	ezfftf(&n, amostras_valores, &a0, a, b, wsave, ifac);
+	ezfftf(&n, amostras_valores, &a0, a, b, wsave, ifac);  // transformada direta de fourier
 
+	// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 	c_linha[0] = a0 + 0 * I;
 	c_linha[nh] = a[nh-1];
 
@@ -615,7 +656,7 @@ void teste_inicial_b() {
 	}
 	printf(")\n");
 
-	ezfftb(&n, amostras_valores, &a0, a, b, wsave, ifac);
+	ezfftb(&n, amostras_valores, &a0, a, b, wsave, ifac);  // anti-transformada de fourier
 
 	printf("amostra anti-transformada = (");
 	for(i = 0; i < n; i++) {
@@ -663,7 +704,7 @@ void teste_inicial_c() {
 	double *wsave;
 
 	amostras_valores = criarVetor(n);
-
+	
 	for(i = 0; i < n; i++) {
 		x = (i * M_PI) / 512;
 
@@ -688,7 +729,7 @@ void teste_inicial_c() {
 	// }
 	// printf(")\n");
 
-	fftrec(c, amostras_valores, n, true);
+	fftrec(c, amostras_valores, n, true);  // Transformada direta pela fftrec
 
 	printf(">>>>>>>>>>>>>>>>>>> c:\n");
 	for(i = 0; i < n; i++) {
@@ -696,7 +737,7 @@ void teste_inicial_c() {
 	}
 	printf("\n");
 
-	fftrec(c, amostras_valores, n, false);
+	fftrec(c, amostras_valores, n, false);  // Anti-transformada direta pela fftrec
 
 	printf(">>>>>>>>>>>>>>>>>>> amostra anti-transformada:\n");
 	for(i = 0; i < n; i++) {
@@ -709,15 +750,16 @@ void teste_inicial_c() {
 	wsave = criarVetor(3 * n + 15);
 	ifac = criarVetorInt(8);
 
-	ezffti(&n, wsave, ifac);
+	ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
 
 	nh = n / 2;
 	a = criarVetor(nh);
 	b = criarVetor(nh);
 	c_linha = criarVetorComplexo(n);
 
-	ezfftf(&n, amostras_valores, &a0, a, b, wsave, ifac);
+	ezfftf(&n, amostras_valores, &a0, a, b, wsave, ifac);  // transformada direta de fourier
 
+	// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 	c_linha[0] = a0 + 0 * I;
 	c_linha[nh] = a[nh-1];
 
@@ -728,26 +770,30 @@ void teste_inicial_c() {
 
 	printf("******************* FFTPACK4: *******************\n");
 
+	// prints
 	printf(">>>>>>>>>>>>>>>>>>> amostra original:\n");
 	for(i = 0; i < n; i++) {
 		printf("%d: %.2f\n", i + 1, amostras_valores[i]);
 	}
 	printf("\n");
 
+	// prints
 	printf(">>>>>>>>>>>>>>>>>>>c:\n");
 	for(i = 0; i < n; i++) {
 		printf("%d: %.2f %+.2fi\n", i + 1, creal(c_linha[i]), cimag(c_linha[i]));
 	}
 	printf("\n");
 
-	ezfftb(&n, amostras_valores, &a0, a, b, wsave, ifac);
+	ezfftb(&n, amostras_valores, &a0, a, b, wsave, ifac);  // anti-transformada de fourier
 
+	// prints
 	printf(">>>>>>>>>>>>>>>>>>>amostra anti-transformada\n");
 	for(i = 0; i < n; i++) {
 		printf("%d: %.2f\n", i + 1, amostras_valores[i]);
 	}
 	printf("\n");
 
+	// desalocacao de vetores
 	free(a);
 	free(b);
 	free(c);
