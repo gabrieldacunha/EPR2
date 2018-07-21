@@ -25,8 +25,8 @@ int ler_arquivo_dat(char *nome_arquivo, int N, double complex *tempo, double com
 void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int channels, int N, double complex *tempo, double complex *f, double complex *f2);
 
 /* >>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<< */
-void fourier(double complex *c, double complex *f, double complex *x, , int n);
-void anti_fourier(double complex *c, double complex *f, double complex *x, , int n);
+void fourier(double complex *c, double complex *f, double complex *x, int n);
+void anti_fourier(double complex *c, double complex *f, double complex *x, int n);
 void fftrec(double complex *c, double complex *f, int n, bool dir);
 void comprimir_sinal(double complex *c, double taxa_minima, int N);
 void passa_altas(double complex *c, int N, int freq_corte );
@@ -311,7 +311,7 @@ void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int channels, int
 
 /* >>>>>>>>>>>>>>>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<<<<<<<<<<<<<<< */
 
-void fourier(double complex *c, double complex *f, double complex *x, , int n){ 
+void fourier(double complex *c, double complex *f, double complex *x, int n){ 
 	/*Obtem um vetor de coeficientes c como resultado da Transformada de Fourier 
 	direta de f(x)*/
 
@@ -328,7 +328,7 @@ void fourier(double complex *c, double complex *f, double complex *x, , int n){
 }
 
 
-void anti_fourier(double complex *c, double complex *f, double complex *x, , int n){
+void anti_fourier(double complex *c, double complex *f, double complex *x, int n){
 	/*Obtem um vetor f com a funcao antitransformada a partir dos coeficientes do vetor c
 	e do vetor x*/
 
@@ -457,6 +457,8 @@ void teste_inicial_a() {
 
 	double complex *amostras;
 	double complex *amostras_valores;
+	double *amostras_valores_2;
+
 
 	// double amostras[n-1];
 	// double amostras_valores[n-1];
@@ -514,7 +516,12 @@ void teste_inicial_a() {
 	}
 	printf(")\n\n");
 
-	// FFTPACK4:
+	/* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
+	amostras_valores_2 = criar_vetor(n);
+	amostras_valores_2[0] = 5;
+	amostras_valores_2[1] = -1;
+	amostras_valores_2[2] = 3;
+	amostras_valores_2[3] = 1;
 
 	wsave = criar_vetor(3 * n + 15);
 	ifac = criar_vetor_int(8);
@@ -526,7 +533,7 @@ void teste_inicial_a() {
 	b = criar_vetor(nh);
 	c_linha = criar_vetor_complexo(n);
 
-	ezfftf(&n, amostras_valores, &a0, a, b, wsave, ifac);  //transformada direta de fourier
+	ezfftf(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  //transformada direta de fourier
 
 	// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 	c_linha[0] = a0 + 0 * I;
@@ -559,12 +566,12 @@ void teste_inicial_a() {
 	}
 	printf(")\n");
 
-	ezfftb(&n, amostras_valores, &a0, a, b, wsave, ifac);  //anti-transformada de fourier
+	ezfftb(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  //anti-transformada de fourier
 
 	// prints
 	printf("amostra anti-transformada = (");
 	for(i = 0; i < n; i++) {
-		printf("%.2f", amostras_valores[i]);
+		printf("%.2f", amostras_valores_2[i]);
 		if(i != n - 1) {
 			printf(", ");
 		}
@@ -578,6 +585,7 @@ void teste_inicial_a() {
 	free(c_linha);
 	free(amostras);
 	free(amostras_valores);
+	free(amostras_valores_2);
 	free(ifac);
 	free(wsave);
 }
@@ -599,20 +607,13 @@ void teste_inicial_b() {
 
 	double complex *amostras;
 	double complex *amostras_valores;
-
-	// double amostras[n-1];
-	// double amostras_valores[n-1];
+	double *amostras_valores_2;
 
 	int *ifac;
 	double *wsave;
 
 	amostras = criar_vetor_complexo(n);
 	amostras_valores = criar_vetor_complexo(n);
-
-	// amostras[0] = 0;
-	// amostras[1] = M_PI / 2;
-	// amostras[2] = M_PI;
-	// amostras[3] = 3 * M_PI / 2;
 
 	amostras_valores[0] = 6;
 	amostras_valores[1] = 2;
@@ -658,7 +659,18 @@ void teste_inicial_b() {
 	}
 	printf(")\n\n");
 
-	// FFTPACK4:
+	/* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
+
+	amostras_valores_2 = criar_vetor(n);
+
+	amostras_valores_2[0] = 6;
+	amostras_valores_2[1] = 2;
+	amostras_valores_2[2] = 5;
+	amostras_valores_2[3] = 2;
+	amostras_valores_2[4] = 11;
+	amostras_valores_2[5] = 2;
+	amostras_valores_2[6] = 8;
+	amostras_valores_2[7] = 8;
 
 	wsave = criar_vetor(3 * n + 15);
 	ifac = criar_vetor_int(8);
@@ -670,7 +682,7 @@ void teste_inicial_b() {
 	b = criar_vetor(nh);
 	c_linha = criar_vetor_complexo(n);
 
-	ezfftf(&n, amostras_valores, &a0, a, b, wsave, ifac);  // transformada direta de fourier
+	ezfftf(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  // transformada direta de fourier
 
 	// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 	c_linha[0] = a0 + 0 * I;
@@ -701,11 +713,11 @@ void teste_inicial_b() {
 	}
 	printf(")\n");
 
-	ezfftb(&n, amostras_valores, &a0, a, b, wsave, ifac);  // anti-transformada de fourier
+	ezfftb(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  // anti-transformada de fourier
 
 	printf("amostra anti-transformada = (");
 	for(i = 0; i < n; i++) {
-		printf("%.2f", amostras_valores[i]);
+		printf("%.2f", amostras_valores_2[i]);
 		if(i != n - 1) {
 			printf(", ");
 		}
@@ -718,6 +730,7 @@ void teste_inicial_b() {
 	free(c_linha);
 	free(amostras);
 	free(amostras_valores);
+	free(amostras_valores_2);
 	free(ifac);
 	free(wsave);
 }
@@ -741,6 +754,7 @@ void teste_inicial_c() {
 
 	double complex *amostras;
 	double complex *amostras_valores;
+	double *amostras_valores_2;
 
 	// double amostras[n-1];
 	// double amostras_valores[n-1];
@@ -790,7 +804,20 @@ void teste_inicial_c() {
 	}
 	printf("\n\n");
 
-	// FFTPACK4:
+	/* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
+
+	amostras_valores_2 = criar_vetor(n);
+	
+	for(i = 0; i < n; i++) {
+		x = (i * M_PI) / 512;
+
+		funcao = 0;
+		funcao = 10 * sin(x);
+		funcao += 7 * cos(30 * x);
+		funcao += 11 * sin(352 * x);
+		funcao -= 8 * cos(711 * x);
+		amostras_valores_2[i] = funcao;
+	}
 
 	wsave = criar_vetor(3 * n + 15);
 	ifac = criar_vetor_int(8);
@@ -802,7 +829,7 @@ void teste_inicial_c() {
 	b = criar_vetor(nh);
 	c_linha = criar_vetor_complexo(n);
 
-	ezfftf(&n, amostras_valores, &a0, a, b, wsave, ifac);  // transformada direta de fourier
+	ezfftf(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  // transformada direta de fourier
 
 	// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 	c_linha[0] = a0 + 0 * I;
@@ -829,12 +856,12 @@ void teste_inicial_c() {
 	}
 	printf("\n");
 
-	ezfftb(&n, amostras_valores, &a0, a, b, wsave, ifac);  // anti-transformada de fourier
+	ezfftb(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  // anti-transformada de fourier
 
 	// prints
 	printf(">>>>>>>>>>>>>>>>>>>amostra anti-transformada\n");
 	for(i = 0; i < n; i++) {
-		printf("%d: %.2f\n", i + 1, amostras_valores[i]);
+		printf("%d: %.2f\n", i + 1, amostras_valores_2[i]);
 	}
 	printf("\n");
 
@@ -844,6 +871,7 @@ void teste_inicial_c() {
 	free(c);
 	free(c_linha);
 	free(amostras_valores);
+	free(amostras_valores_2);
 	free(ifac);
 	free(wsave);
 }
