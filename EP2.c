@@ -19,13 +19,14 @@
 /* >>>>>>>>>>> Funcoes basicas <<<<<<<<<<< */
 double* criarVetor(int N);
 int* criarVetorInt(int N);
+double complex* criarVetorComplexo(int N);
 void teste_complexos();
 int tamanho_arquivo(char *nome_arquivo, int *channels);
 int ler_arquivo_dat(char *nome_arquivo, int N, double complex *tempo, double complex *f, double complex *f2);
 void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int channels, int N, double complex *tempo, double complex *f, double complex *f2);
 
 /* >>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<< */
-void fftrec(double complex *c, double complex *f, int N, bool direta);
+void fftrec(double complex *c, double complex *f, int n, bool dir);
 void filtro(double complex *c, int N, double freq_corte, char *tipo);
 
 /* >>>>>>>>>>> Testes iniciais <<<<<<<<<<< */
@@ -330,44 +331,42 @@ void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int channels, int
 
 
 /* >>>>>>>>>>>>>>>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<<<<<<<<<<<<<<< */
-void fftrec(double complex *c, double complex *f, int N, bool direta) {
+void fftrec(double complex *c, double complex *f, int n, bool dir) {
 	/* Funcao feita com base no pseudo-codigo do enunciado do EP2 */
 
 	double complex eij;
 	double complex *even, *odd, *fe, *fo;
 	int j; /* Variavel auxiliar*/
 
-	even = criarVetorComplexo(N);
-	odd = criarVetorComplexo(N);
-	fe = criarVetorComplexo(N);
-	fo = criarVetorComplexo(N);
+	even = criarVetorComplexo(n);
+	odd = criarVetorComplexo(n);
+	fe = criarVetorComplexo(n);
+	fo = criarVetorComplexo(n);
 
-	if(N == 1) {
+	if(n == 1) {
 		c[0] = f[0] + f[1];
 		c[1] = f[0] - f[1];
 	}
 	else {
-		for(j = 0; j < N; j++) {
+		for(j = 0; j < n; j++) {
 			fe[j] = f[2 * j];
 			fo[j] = f[2 * j + 1];
-			even[j] = c[2 * j];
-			odd[j] = c[2 * j + 1];
 		}
 
-		fftrec(even, fe, N/2, direta);
-		fftrec(odd, fo, N/2, direta);
+		fftrec(even, fe, n/2, dir);
+		fftrec(odd, fo, n/2, dir);
 
-		for(j = 0; j < N; j++) {
+		for(j = 0; j < n; j++) {
 
-			if(direta) {
-				eij = cexp(- I * j * M_PI / N);  // https://stackoverflow.com/questions/2834865/computing-e-j-in-c
+			if(dir) {
+				eij = cexp(- I * j * M_PI / n);  // https://stackoverflow.com/questions/2834865/computing-e-j-in-c
 			}
 			else {
-				eij = cexp(I * j * M_PI / N);
+				eij = cexp(I * j * M_PI / n);
 			}
 
 			c[j] = even[j] + eij * odd[j];
-			c[j+N] = even[j] - eij * odd[j];
+			c[j+n] = even[j] - eij * odd[j];
 		}
 	}
 }
@@ -410,8 +409,8 @@ void teste_inicial_a() {
 	double complex *c;
 	double complex *c_linha;
 
-	double *amostras;
-	double *amostras_valores;
+	double complex *amostras;
+	double complex *amostras_valores;
 
 	// double amostras[n-1];
 	// double amostras_valores[n-1];
@@ -419,8 +418,8 @@ void teste_inicial_a() {
 	int *ifac;
 	double *wsave;
 
-	amostras = criarVetor(n);
-	amostras_valores = criarVetor(n);
+	amostras = criarVetorComplexo(n);
+	amostras_valores = criarVetorComplexo(n);
 
 	amostras[0] = 0;
 	amostras[1] = M_PI / 2;
@@ -547,13 +546,13 @@ void teste_inicial_b() {
 	int i;
 
 	double *a;
-	double a0;
+	double a0;       
 	double *b;
 	double complex *c;
 	double complex *c_linha;
 
-	double *amostras;
-	double *amostras_valores;
+	double complex *amostras;
+	double complex *amostras_valores;
 
 	// double amostras[n-1];
 	// double amostras_valores[n-1];
@@ -561,8 +560,8 @@ void teste_inicial_b() {
 	int *ifac;
 	double *wsave;
 
-	amostras = criarVetor(n);
-	amostras_valores = criarVetor(n);
+	amostras = criarVetorComplexo(n);
+	amostras_valores = criarVetorComplexo(n);
 
 	// amostras[0] = 0;
 	// amostras[1] = M_PI / 2;
@@ -694,8 +693,8 @@ void teste_inicial_c() {
 	double complex *c;
 	double complex *c_linha;
 
-	double *amostras;
-	double *amostras_valores;
+	double complex *amostras;
+	double complex *amostras_valores;
 
 	// double amostras[n-1];
 	// double amostras_valores[n-1];
@@ -703,7 +702,7 @@ void teste_inicial_c() {
 	int *ifac;
 	double *wsave;
 
-	amostras_valores = criarVetor(n);
+	amostras_valores = criarVetorComplexo(n);
 	
 	for(i = 0; i < n; i++) {
 		x = (i * M_PI) / 512;
