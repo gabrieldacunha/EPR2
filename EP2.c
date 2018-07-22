@@ -22,9 +22,9 @@ void imprimir_vetor(double* vetor, int N);
 void imprimir_complexo(double complex *c, int N);
 
 /* >>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<< */
-int tamanho_arquivo(char *nome_arquivo, int *channels);
-int ler_arquivo_dat(char *nome_arquivo, int N, double complex *tempo, double complex *f, double complex *f2);
-void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int channels, int N, double complex *tempo, double complex *f, double complex *f2);
+int tamanho_arquivo(char *nome_arquivo, int *canais);
+int ler_arquivo_dat(char *nome_arquivo, int N, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f_linha2);
+void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int N, double complex *x, double complex *f, double complex *f2);
 void fourier(double complex *c, double complex *f, double complex *x, int n);
 void anti_fourier(double complex *c, double complex *f, double complex *x, int n);
 void fftrec(double complex *c, double complex *f, int n, bool dir);
@@ -32,22 +32,34 @@ void comprimir_sinal(double complex *c, double taxa_minima, int N);
 void passa_altas(double complex *c, int N, int freq_corte );
 void passa_baixas(double complex *c, int N, int freq_corte);
 void passa_bandas(double complex *c, int N, int freq1, int freq2);
-void executar_teste(int tipo);
 
 /* ------------------------------------------------------------------------------------- */
 
 int main() {
-	// Declaracao de variaveis
-	int N, tipo_problema, tipo_transformada, escrever_arquivo;
-	char nome_arquivo[128];
-	bool direta;
-	int sample_rate, channels;
-	double complex *c;
-	double complex *tempo;
-	double complex *f;
-	double complex *f2;
+	// Variaveis globais
+	int n; // numero total de amostras. Usado para a alocacao de vetores
+	double complex *c; // Vetor de coeficientes
+	double complex *x; // Vetor de amostras 
+	double complex *f; // Vetor de valores da função em cada amostra
+	int tipo_problema, tipo_transformada;
+	bool direta; // Usado na fftrec
 
-	/* Execucao do codigo */
+	// Variaveis especificas dos arquivos de audio
+	int escolha, tipo_filtro, tipo_compressao;
+	char nome_arquivo[128];
+	double complex *c2; // Vetor de coeficientes para o segundo canal
+    double complex *f2; // Vetor de valores da função para o segundo canal
+    int sample_rate, canais;
+    int K, K1, K2; // Parametros de corte utilizados nos filtros
+    int S; // Parametro de compressao
+
+	// Variaveis especificas do fftpack4
+	double *a, *b, *a2, *b2;
+	double a0, a02; 
+	int *ifac, *ifac2;
+	double *wsave, *wsave2;
+	double *f_linha, *f_linha2; 
+
     printf("EP2 - Numerico\n\n");
     printf("1 - Teste a\n");
     printf("2 - Teste b\n");
@@ -59,84 +71,393 @@ int main() {
 
     switch(tipo_problema) {
 
-        case 1:
-			executar_teste(1);
+        case 1: // Teste a
+        	n = 2;
+
+			x = criar_vetor_complexo(2*n);
+			x[0] = 0;
+   			x[1] = M_PI / 2;
+    		x[2] = M_PI;
+    		x[3] = 3 * M_PI / 2;
+
+    		f = criar_vetor_complexo(2*n);
+    		f[0] = 5;
+		    f[1] = -1;
+		    f[2] = 3;
+		    f[3] = 1;
+
+		    f_linha = criar_vetor(2*n);  // No FFTPACK4, trabalha-se com valores em double e nao complexos:
+		    f_linha[0] = 5;
+		    f_linha[1] = -1;
+		    f_linha[2] = 3;
+		    f_linha[3] = 1;
             break;
 
-        case 2:
-        	executar_teste(2);
+        case 2: // Teste b
+        	n = 4;
+
+			x = criar_vetor_complexo(2*n);
+			x[0] = 0;
+   			x[1] = M_PI / 4;
+    		x[2] = M_PI / 2;
+    		x[3] = 3 * M_PI / 4;
+    		x[4] = M_PI;
+    		x[5] = 5 * M_PI / 4;
+    		x[6] = 3 * M_PI / 2;
+    		x[7] = 7 * M_PI / 4;
+
+			f = criar_vetor_complexo(2*n);
+			f[0] = 6;
+		    f[1] = 2;
+		    f[2] = 5;
+		    f[3] = 2;
+		    f[4] = 11;
+		    f[5] = 2;
+		    f[6] = 8;
+		    f[7] = 8;
+
+		    f_linha = criar_vetor(2*n); // No FFTPACK4, trabalha-se com valores em double e nao complexos
+	    	f_linha[0] = 6;
+			f_linha[1] = 2;
+			f_linha[2] = 5;
+			f_linha[3] = 2;
+			f_linha[4] = 11;
+			f_linha[5] = 2;
+			f_linha[6] = 8;
+			f_linha[7] = 8;
             break;
 
-        case 3:
-        	executar_teste(3);
+        case 3: // Teste c
+        	n = 512;
+			x = criar_vetor_complexo(2*n);
+			f = criar_vetor_complexo(2*n);
+			f_linha = criar_vetor(2*n); // No FFTPACK4, trabalha-se com valores em double e nao complexos
+			
+			for(int i = 0; i < 2*n; i++) {
+		        x[i] = (i * M_PI) / 512; 
+
+		        f[i] = 10*sin(x[i]) + 7*cos(30*x[i]) + 11*sin(352*x[i]) - 8*cos(711*x[i]);
+		        f_linha[i] = 10*sin(x[i]) + 7*cos(30*x[i]) + 11*sin(352*x[i]) - 8*cos(711*x[i]);
+		    }
             break;
 
-        case 4:
+        case 4: // Arquivos de audio
 		    printf("Digite o nome do arquivo a ser analizado (com a terminacao .dat): ");
 		    scanf("%s", nome_arquivo);
-		    printf("\n");
-		    printf("Transformada direta ou inversa?\n");
-		    printf("1 - Direta\n");
-		    printf("2 - Inversa\n");
-		    printf("Tipo de transformada: ");
-		    scanf("%d", &tipo_transformada);
-		    printf("\n");
-
-		    if(tipo_transformada == 2) {
-		    	direta = false;
-		    }
-		    else {
-		    	direta = true;
-		    }
-
-		    // N = o numero total de amostras. Usado para a alocacao de vetores
-			N = tamanho_arquivo(nome_arquivo, &channels);
-
-			printf("N = %d\n", N);
+			n = tamanho_arquivo(nome_arquivo, &canais); // Define o numero de amostras com base no arquivo
+			printf("\n---------------Analise de Fourier----------------\n");
 
 			// Alocacao de vetores
-			c = criar_vetor_complexo(2*N);
-			tempo = criar_vetor_complexo(2*N);
-			f = criar_vetor_complexo(2*N);
-			f2 = criar_vetor_complexo(2*N);
-
-			// Leitura de fato do arquivo
-			sample_rate = ler_arquivo_dat(nome_arquivo, N, tempo, f, f2);
-
-			// Se houver 2 canais, a analise eh feita em ambos
-			if(channels == 1) {
-				fftrec(c, f, N, direta);
-			}
-			else if(channels == 2) {
-				fftrec(c, f, N, direta);
-				fftrec(c, f2, N, direta);
-			}
-
-			printf("Escrever resultado em arquivo?\n");
-		    printf("1 - Sim\n");
-		    printf("2 - Nao\n");
-		    printf("Resposta: ");
-		    scanf("%d", &escrever_arquivo);
-
-		    if(escrever_arquivo == 1) {
-		    	printf("Digite o nome do arquivo a ser escrito (com a terminacao .dat): ");
-		    	scanf("%s", nome_arquivo);
-
-		    	// Escrever resultado da analise no arquivo
-		    	escrever_arquivo_dat(nome_arquivo, sample_rate, channels, N, tempo, f, f2);
-		    }
-
-		    // Desalocacao de memoria
-			free(c);
-			free(tempo);
-			free(f);
-			free(f2);
+			x = criar_vetor_complexo(2*n);
+			f = criar_vetor_complexo(2*n);
+			f2 = criar_vetor_complexo(2*n);
+			// No FFTPACK4, trabalha-se com valores em double e nao complexos
+			f_linha = criar_vetor(2*n); 
+			f_linha2 = criar_vetor(2*n);
+			// Leitura do arquivo
+			sample_rate = ler_arquivo_dat(nome_arquivo, n, x, f, f2, f_linha, f_linha2);
             break;
 
         default:
             printf("Opcao invalida!\n");
             break;
     }
+
+	if(tipo_problema != 4) { // Testes a, b, c:
+		c = criar_vetor_complexo(2*n);
+
+		printf("\n------------- Forma Direta ---------------\n\n");
+		printf("Amostra original do sinal:\n");
+		imprimir_complexo(f, 2*n);
+
+		printf("Transformada de Fourier - Vetor de coeficientes:\n");
+		fourier(c, f, x, n);
+		imprimir_complexo(c, 2*n);
+
+	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
+	    anti_fourier(c, f, x, n);
+		imprimir_complexo(f, 2*n);
+
+		printf("\n------------- FFT Recursiva ---------------\n\n");
+		printf("Amostra original do sinal:\n");
+	    imprimir_complexo(f, 2*n);
+
+		printf("Transformada de Fourier - Vetor de coeficientes:\n");
+		fftrec(c, f, n, true);  // Transformada direta pela fftrec
+
+		// Como indicado no algoritmo, faz-se necessaria a divisao dos coeficientes por 2N
+		for(int i = 0; i < 2*n; i++){
+	        c[i] = c[i]/(2*n);
+	    }
+	    imprimir_complexo(c, 2*n);
+
+	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
+		fftrec(c, f, n, false);  // Anti-transformada pela fftrec	
+	    imprimir_complexo(f, 2*n);
+
+		printf("\n------------- FFTPACK4 ---------------\n\n");
+	    printf("Amostra original do sinal:\n");
+	    imprimir_complexo(f, 2*n);
+		
+		wsave = criar_vetor(3 * n + 15);
+		ifac = criar_vetor_int(8);
+		a = criar_vetor(n/2);
+		b = criar_vetor(n/2);
+
+		n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
+		ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
+		ezfftf(&n, f_linha, &a0, a, b, wsave, ifac);  // transformada direta de fourier
+		n = n/2; // Retorna-se para o valor de n original
+
+		// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
+		c[0] = a0;
+		for(int i = 1; i < n; i++) {
+			c[i] = (a[i-1] - (I * b[i-1]))/2;	
+		}
+		c[n] = a[n-1] + I*b[n-1];
+		for(int i = 1; i < n; i++) {
+			c[2*n-i] = (a[i-1] + (I * b[i-1]))/2;
+		}
+
+		printf("Transformada de Fourier - Vetor de coeficientes:\n");
+	    imprimir_complexo(c, 2*n);
+
+	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
+		n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
+		ezfftb(&n, f_linha, &a0, a, b, wsave, ifac);  // Antitransformada de fourier
+	    imprimir_vetor(f_linha, n);
+        
+    } else { // Para os arquivos de audio
+    	c = criar_vetor_complexo(2*n);
+    	if(canais == 2) {
+			c2 = criar_vetor_complexo(2*n);
+		}
+    	
+		printf("1 - Forma direta\n");
+		printf("2 - FFT Recursiva\n");
+		printf("3 - FFTPACK4\n");
+		printf("Selecione o tipo de transformada desejada: ");
+		scanf("%d", &tipo_transformada);
+
+
+		// Transformada de Fourier
+
+		switch(tipo_transformada) {
+			case 1:
+
+				fourier(c, f, x, n);
+				if(canais == 2) {
+					fourier(c2, f2, x, n);
+				}
+				printf("\nTransformada de Fourier (Forma Direta) realizada.\n\n");
+				break;
+
+			case 2:
+				fftrec(c, f, n, true);
+				if(canais == 2) {
+					fftrec(c2, f2, n, true);
+				}
+				// Como indicado no algoritmo, faz-se necessaria a divisao dos coeficientes por 2N
+				for(int i = 0; i < 2*n; i++){
+			        c[i] = c[i]/(2*n);
+			    }
+			    if(canais == 2) {
+			    	for(int i = 0; i < 2*n; i++){
+			        	c2[i] = c[i]/(2*n);
+			   		}
+			    }
+				printf("\nTransformada de Fourier (Forma Recursiva) realizada.\n\n");
+			    break;
+
+			case 3:
+				
+				wsave = criar_vetor(3 * n + 15);
+				ifac = criar_vetor_int(8);
+				a = criar_vetor(n/2);
+				b = criar_vetor(n/2);
+				wsave2 = criar_vetor(3 * n + 15);
+				ifac2 = criar_vetor_int(8);
+				a2 = criar_vetor(n/2);
+				b2 = criar_vetor(n/2);
+
+				n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
+				ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
+				ezfftf(&n, f_linha, &a0, a, b, wsave, ifac);  // transformada direta de fourier
+				n = n/2; // Retorna-se para o valor de n original
+
+				// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
+				c[0] = a0;
+				for(int i = 1; i < n; i++) {
+					c[i] = (a[i-1] - (I * b[i-1]))/2;	
+				}
+				c[n] = a[n-1] + I*b[n-1];
+				for(int i = 1; i < n; i++) {
+					c[2*n-i] = (a[i-1] + (I * b[i-1]))/2;
+				}
+
+				if(canais == 2) {
+					n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
+					ezffti(&n, wsave2, ifac2);  // inicializacao da fftpack4
+					ezfftf(&n, f_linha2, &a02, a2, b2, wsave2, ifac2);  // transformada direta de fourier
+					n = n/2; // Retorna-se para o valor de n original
+
+					// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
+					c2[0] = a02;
+					for(int i = 1; i < n; i++) {
+						c2[i] = (a2[i-1] - (I * b2[i-1]))/2;	
+					}
+					c2[n] = a2[n-1] + I*b2[n-1];
+					for(int i = 1; i < n; i++) {
+						c2[2*n-i] = (a2[i-1] + (I * b2[i-1]))/2;
+					}
+				}
+				break;
+        }
+
+
+        // Aplicacao de Filtros
+
+        printf("Deseja aplicar um filtro no sinal?\n");
+        printf("1 - Sim\n");
+	    printf("2 - Nao\n");
+	    scanf("%d", &escolha);
+	    if (escolha == 1) {
+	    	printf("1 - Passa-altas\n");
+	    	printf("2 - Passa-baixas\n");
+	    	printf("3 - Passa-bandas\n");
+	    	printf("Digite o filtro desejado: \n");
+	    	scanf("%d", &tipo_filtro);
+	    	printf("O sinal analisado tem %d amostras. \n", 2*n);	    
+	    	switch(tipo_filtro) {
+	    		case 1:
+	    			printf("Digite o parametro de corte K: ");
+	    			scanf("%d", &K);
+	    			passa_altas(c, n, K);
+	    			if (canais == 2) {
+	    				passa_altas(c2, n, K);
+	    			}
+	    			printf("\nFiltro passa-altas aplicado.\n\n");
+	    			break;
+	    		case 2:
+	    			printf("Digite o parametro de corte K: ");
+	    			scanf("%d", &K);
+	    			passa_baixas(c, n, K);
+	    			if (canais == 2) {
+	    				passa_baixas(c2, n, K);
+	    			}
+	    			printf("\nFiltro passa-baixas aplicado.\n\n");
+	    			break;
+	    		case 3:
+	    			printf("Digite o parametro de corte K1: ");
+	    			scanf("%d", &K1);
+	    			printf("Digite o parametro de corte K2: ");
+	    			scanf("%d", &K2);
+	    			passa_bandas(c, n, K1, K2);
+	    			if (canais == 2) {
+	    				passa_bandas(c2, n, K1, K2);
+	    			}
+	    			printf("\nFiltro passa-bandas aplicado.\n\n");
+	    			break;
+
+	    	}
+
+	    } else if(escolha != 2) {
+	    	printf("Escolha invalida!\n");
+	    }
+
+
+	    // Compressao
+
+	    printf("Deseja comprimir o sinal?\n");
+        printf("1 - Sim\n");
+	    printf("2 - Nao\n");
+	    scanf("%d", &escolha);
+	    if (escolha == 1) {
+	    	printf("Digite o parametro de compressao S: ");
+	    	scanf("%d", &S);
+	    	comprimir_sinal(c, S, n);
+	    	if(canais == 2){
+	    		comprimir_sinal(c2, S, n);
+	    	}
+	    	printf("\nSinal comprimido.\n\n");
+	    } else if(escolha != 2) {
+	    	printf("Escolha invalida!\n");
+	    }
+
+
+        // Antitransformada de Fourier
+
+        switch(tipo_transformada) {
+			case 1:
+			    anti_fourier(c, f, x, n);
+			    if(canais == 2){
+			    	anti_fourier(c2, f2, x, n);
+			    }
+			    printf("\nAntitransformada de Fourier (forma direta) aplicada.\n\n");
+				break;
+
+			case 2:
+				fftrec(c, f, n, false);
+				if(canais == 2){
+			    	fftrec(c2, f2, n, false);
+			    }	
+				printf("\nAntitransformada de Fourier (FFT Recursiva) aplicada.\n\n");
+			    break;
+
+			case 3:
+				n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
+				ezfftb(&n, f_linha, &a0, a, b, wsave, ifac);  
+			    if(canais == 2){
+			    	ezfftb(&n, f_linha2, &a02, a2, b2, wsave2, ifac2);  
+			    }	
+			    printf("\nAntitransformada de Fourier (FFTPACK4) aplicada.\n\n");
+			    break;
+        }
+
+
+        //Gravando arquivo
+
+		printf("Deseja gravar o resultado em um arquivo?\n");
+	    printf("1 - Sim\n");
+	    printf("2 - Nao\n");
+	    printf("Resposta: ");
+	    scanf("%d", &escolha);
+
+	    if(escolha == 1) {
+	    	printf("\nDigite o nome do arquivo a ser escrito (com a terminacao .dat): ");
+	    	scanf("%s", nome_arquivo);
+	    	// Escreve o resultado da analise no arquivo
+	    	if(tipo_transformada == 3) {
+	    		for(int i = 0; i < 2*n; i++){
+	    			f[i] = (complex double)f_linha[i];
+	    		}
+	    		if(canais ==2) {
+	    			for(int i = 0; i < 2*n; i++){
+	    				f2[i] = (complex double)f_linha2[i];
+	    			}	
+	    		}
+	    	}
+	    	escrever_arquivo_dat(nome_arquivo, sample_rate, canais, n, x, f, f2);
+	    	printf("\nArquivo gravado com sucesso!\n");
+	    } 
+    }
+
+    // Desalocacao de memoria
+    free(ifac);
+	free(wsave);
+	free(a);
+	free(b);
+	free(ifac2);
+	free(wsave2);
+	free(a2);
+	free(b2);
+	free(c);
+	free(c2);
+	free(x);
+	free(f);
+	free(f2);
+	free(f_linha);
+	free(f_linha2);
 	return 0;
 }
 
@@ -195,7 +516,7 @@ void imprimir_complexo(double complex *c, int N) {
     printf("\n");
 }
 
-int tamanho_arquivo(char *nome_arquivo, int *channels) {
+int tamanho_arquivo(char *nome_arquivo, int *canais) {
 	int n = 0;
 	int var_temp1;
 	double var_temp2, var_temp3, var_temp4;  // estas variaveis nao tem funcao de fato
@@ -212,9 +533,9 @@ int tamanho_arquivo(char *nome_arquivo, int *channels) {
     fscanf(arquivo, "%*[^0-9]%d", &var_temp1);
     fscanf(arquivo, "%*[^0-9]%d", &var_temp1);
 
-    *channels = var_temp1; // retornando numero de canais por meio de um ponteiro
+    *canais = var_temp1; // retornando numero de canais por meio de um ponteiro
 
-    if(*channels == 1) {
+    if(*canais == 1) {
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { // pega uma linha de até 512 caracteres. Null quando acabar as linhas 
 
 	        sscanf(linha, "%lf %lf", &var_temp2, &var_temp3);
@@ -225,7 +546,7 @@ int tamanho_arquivo(char *nome_arquivo, int *channels) {
         }
     }
 
-    else if(*channels == 2) {
+    else if(*canais == 2) {
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { // pega uma linha de até 512 caracteres. Null quando acabar as linhas
 
 	        sscanf(linha, "%lf %lf %lf", &var_temp2, &var_temp3, &var_temp4);
@@ -244,10 +565,10 @@ int tamanho_arquivo(char *nome_arquivo, int *channels) {
 }
 
 
-int ler_arquivo_dat(char *nome_arquivo, int N, double complex *tempo, double complex *f, double complex *f2) {
+int ler_arquivo_dat(char *nome_arquivo, int N, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f_linha2) {
 	int i = 0;
-	int sample_rate, channels;
-	double var_tempo, var_f, var_f2;
+	int sample_rate, canais;
+	double var_x, var_f, var_f2;
 	char linha[512];
 
 	FILE *arquivo = fopen(nome_arquivo, "r");
@@ -259,26 +580,29 @@ int ler_arquivo_dat(char *nome_arquivo, int N, double complex *tempo, double com
 
     /* Solucao para fscanf encontrada em: https://stackoverflow.com/questions/19413569/can-i-use-fscanf-to-get-only-digits-from-text-that-contain-chars-and-ints */
     fscanf(arquivo, "%*[^0-9]%d", &sample_rate);  // Sample Rate
-    fscanf(arquivo, "%*[^0-9]%d", &channels);  // Channels
+    fscanf(arquivo, "%*[^0-9]%d", &canais);  // Channels
 
     /* leitura de dados do arquivo */
-    if(channels == 1) {
+    if(canais == 1) {
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { /* pega uma linha de até 512 caracteres. Null quando acabar as linhas */
-	        sscanf(linha, "%lf %lf", &var_tempo, &var_f);
+	        sscanf(linha, "%lf %lf", &var_x, &var_f);
 
-	        tempo[i] = var_tempo;  // vetor de tempo na amostragem
+	        x[i] = var_x;  // vetor de x na amostragem
 	        f[i] = var_f;  // amplitude do sinal
+	        f_linha[i] = var_f; // amplitude do sinal - para fftpack4
 	        i++;  // posicao de alocacao no vetor acompanha a passagem de linhas
         }
     }
 
-    else if(channels == 2) {
+    else if(canais == 2) {
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { /* pega uma linha de até 512 caracteres. Null quando acabar as linhas */
-	        sscanf(linha, "%lf %lf %lf", &var_tempo, &var_f, &var_f2);
+	        sscanf(linha, "%lf %lf %lf", &var_x, &var_f, &var_f2);
 
-	        tempo[i] = var_tempo;  // vetor de tempo na amostragem
+	        x[i] = var_x;  // vetor de x na amostragem
 	        f[i] = var_f;  // amplitude do sinal do canal 1
+	        f_linha[i] = var_f; // amplitude do sinal do canal 1 - para fftpack4
 	        f2[i] = var_f2;  // amplitude do sinal do canal 2
+	        f_linha2[i] = var_f2; // amplitude do sinal do canal 2 - para fftpack4
 	        i++;  // posicao de alocacao no vetor acompanha a passagem de linhas
 	    }
     }
@@ -293,29 +617,29 @@ int ler_arquivo_dat(char *nome_arquivo, int N, double complex *tempo, double com
 }
 
 
-void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int channels, int N, double complex *tempo, double complex *f, double complex *f2) {
+void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int N, double complex *x, double complex *f, double complex *f2) {
 	int i;
-	FILE *arquivo = fopen(nome_arquivo, "r");
+	FILE *arquivo = fopen(nome_arquivo, "w");
 
 	// Escreve a sample rate e o numero de canais no mesmo formato dos arquivos .dat fornecidos
 	fprintf(arquivo, "; Sample Rate %d\n", sample_rate);
-	fprintf(arquivo, "; Channels %d\n", channels);
+	fprintf(arquivo, "; Channels %d\n", canais);
 
 	// Se houver apenas 1 canal, havera 2 colunas de dados
-	if(channels == 1) {
+	if(canais == 1) {
 		for(i = 0; i < N; i++) {
-			fprintf(arquivo, " %lf %lf\n", tempo[i], f[i]);
+			fprintf(arquivo, " %lf %lf\n", creal(x[i]), creal(f[i]));
 		}
 	}
 
 	// Se houverem 2 canais, havera 3 colunas de dados
-	else if(channels == 2) {
+	else if(canais == 2) {
 		for(i = 0; i < N; i++) {
-			fprintf(arquivo, " %lf %lf %lf\n", tempo[i], f[i], f2[i]);
+			fprintf(arquivo, " %lf %lf %lf\n", creal(x[i]), creal(f[i]), creal(f2[i]));
 		}
 	}
 	else {
-		printf("Ops! Numero de canais nao suportado\n");
+		printf("Numero de canais nao suportado.\n");
 	}
 	fclose(arquivo);
 }
@@ -438,171 +762,4 @@ void passa_bandas(double complex *c, int N, int freq1, int freq2) {
         c[k] = 0;
     }
 }
-
-
-/* >>>>>>>>>>>>>>>>>>>>>>>> Testes iniciais <<<<<<<<<<<<<<<<<<<<<<<< */
-
-void executar_teste(int tipo) {
-	/* Documentacao: http://people.sc.fsu.edu/~jburkardt/c_src/fftpack4/fftpack4.html
-	* Baseado no teste 4 em: http://people.sc.fsu.edu/~jburkardt/c_src/fftpack4/fftpack4_prb.c
-	*/
-	int n;
-	double complex *c;
-	double complex *x; // Vetor de amostras 
-	double complex *f; // Vetor de valores da função em cada amostra
-	double *f_2; // Vetor de valores da função em cada amostra - usado no fftpack4
-	double *a, *b;
-	double a0; 
-	int *ifac;
-	double *wsave;
-
-	switch(tipo) {
-		case 1: //Teste
-			n = 2;
-
-			x = criar_vetor_complexo(2*n);
-			x[0] = 0;
-   			x[1] = M_PI / 2;
-    		x[2] = M_PI;
-    		x[3] = 3 * M_PI / 2;
-
-    		f = criar_vetor_complexo(2*n);
-    		f[0] = 5;
-		    f[1] = -1;
-		    f[2] = 3;
-		    f[3] = 1;
-
-		    f_2 = criar_vetor(2*n);  /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
-		    f_2[0] = 5;
-		    f_2[1] = -1;
-		    f_2[2] = 3;
-		    f_2[3] = 1;
-			break;
-
-		case 2: // Teste B
-			n = 4;
-
-			x = criar_vetor_complexo(2*n);
-			x[0] = 0;
-   			x[1] = M_PI / 4;
-    		x[2] = M_PI / 2;
-    		x[3] = 3 * M_PI / 4;
-    		x[4] = M_PI;
-    		x[5] = 5 * M_PI / 4;
-    		x[6] = 3 * M_PI / 2;
-    		x[7] = 7 * M_PI / 4;
-
-			f = criar_vetor_complexo(2*n);
-			f[0] = 6;
-		    f[1] = 2;
-		    f[2] = 5;
-		    f[3] = 2;
-		    f[4] = 11;
-		    f[5] = 2;
-		    f[6] = 8;
-		    f[7] = 8;
-
-		    f_2 = criar_vetor(2*n); /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
-	    	f_2[0] = 6;
-			f_2[1] = 2;
-			f_2[2] = 5;
-			f_2[3] = 2;
-			f_2[4] = 11;
-			f_2[5] = 2;
-			f_2[6] = 8;
-			f_2[7] = 8;
-			break;
-
-		case 3: // Teste C 
-			n = 512;
-			x = criar_vetor_complexo(2*n);
-			f = criar_vetor_complexo(2*n);
-			f_2 = criar_vetor(2*n); /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
-			
-			for(int i = 0; i < 2*n; i++) {
-		        x[i] = (i * M_PI) / 512; 
-
-		        f[i] = 10*sin(x[i]) + 7*cos(30*x[i]) + 11*sin(352*x[i]) - 8*cos(711*x[i]);
-		        f_2[i] = 10*sin(x[i]) + 7*cos(30*x[i]) + 11*sin(352*x[i]) - 8*cos(711*x[i]);
-		    }
-			break;
-		default:
-			break;
-	}
-
-	c = criar_vetor_complexo(2*n);
-
-	printf("------------- Forma Direta ---------------\n\n");
-	printf("Amostra original do sinal:\n");
-    imprimir_complexo(f, 2*n);
-
-	printf("Transformada de Fourier - Vetor de coeficientes:\n");
-	fourier(c, f, x, n);
-	imprimir_complexo(c, 2*n);
-
-    printf("Antitransformada de Fourier - Sinal recuperado:\n");
-    anti_fourier(c, f, x, n);
-	imprimir_complexo(f, 2*n);
-
-	printf("\n------------- FFT Recursiva ---------------\n\n");
-	printf("Amostra original do sinal:\n");
-    imprimir_complexo(f, 2*n);
-
-	printf("Transformada de Fourier - Vetor de coeficientes:\n");
-	fftrec(c, f, n, true);  // Transformada direta pela fftrec
-
-	// Como indicado no algoritmo, faz-se necessaria a divisao dos coeficientes por 2N
-	for(int i = 0; i < 2*n; i++){
-        c[i] = c[i]/(2*n);
-    }
-    imprimir_complexo(c, 2*n);
-
-    printf("Antitransformada de Fourier - Sinal recuperado:\n");
-	fftrec(c, f, n, false);  // Anti-transformada pela fftrec	
-    imprimir_complexo(f, 2*n);
-
-    printf("\n------------- FFTPACK4 ---------------\n\n");
-    printf("Amostra original do sinal:\n");
-    imprimir_complexo(f, 2*n);
-	
-	wsave = criar_vetor(3 * n + 15);
-	ifac = criar_vetor_int(8);
-	a = criar_vetor(n/2);
-	b = criar_vetor(n/2);
-
-	n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
-	ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
-	ezfftf(&n, f_2, &a0, a, b, wsave, ifac);  // transformada direta de fourier
-	n = n/2; // Retorna-se para o valor de n original
-
-	// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
-	c[0] = a0;
-	for(int i = 1; i < n; i++) {
-		c[i] = (a[i-1] - (I * b[i-1]))/2;	
-	}
-	c[n] = a[n-1] + I*b[n-1];
-	for(int i = 1; i < n; i++) {
-		c[2*n-i] = (a[i-1] + (I * b[i-1]))/2;
-	}
-
-	printf("Transformada de Fourier - Vetor de coeficientes:\n");
-    imprimir_complexo(c, 2*n);
-
-    printf("Antitransformada de Fourier - Sinal recuperado:\n");
-	n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
-	ezfftb(&n, f_2, &a0, a, b, wsave, ifac);  // Antitransformada de fourier
-    imprimir_vetor(f_2, n);
-
-	free(a);
-	free(b);
-	free(c);
-	free(f);
-	free(f_2);
-	free(ifac);
-	free(wsave);
-	if (tipo == 1) {
-		free(x);
-	}
-}
-
 
