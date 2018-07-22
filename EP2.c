@@ -184,7 +184,7 @@ void imprimir_vetor(double* vetor, int N) {
 
     int i;
 
-    for(i = 0; i < N; i++){
+    for(i = 0; i < N; i++) {
         if(vetor[i] >= 0) {
             printf("|  %.3e |\n", vetor[i]);
         }
@@ -200,8 +200,14 @@ void imprimir_complexo(double complex *c, int N) {
 
     int i;
 
-    for(i = 0; i < N; i++){
-        printf("|%.2f %+.2fi|\n", creal(c[i]), cimag(c[i]));
+    for(i = 0; i < N; i++) {
+    	if (creal(c[i]) > 0) {
+    		printf("| %.2f %+.2fi|\n", creal(c[i]), cimag(c[i]));
+    	} else {
+    		printf("|%.2f %+.2fi|\n", creal(c[i]), cimag(c[i]));
+    	}
+
+        
     }
     printf("\n");
 }
@@ -378,7 +384,6 @@ void fftrec(double complex *c, double complex *f, int n, bool dir) {
 	double complex eij;
 	double complex *even, *odd, *fe, *fo;
 	int j; /* Variavel auxiliar*/
-	float nn = (float)n;
 
 	even = criar_vetor_complexo(n);
 	odd = criar_vetor_complexo(n);
@@ -400,12 +405,10 @@ void fftrec(double complex *c, double complex *f, int n, bool dir) {
 
 		for(j = 0; j < n; j++) {
 			if(dir) {
-				eij = cpow(M_E, (-I*j*M_PI)/nn);
-				// eij = cexp(- I * j * M_PI / n);  // https://stackoverflow.com/questions/2834865/computing-e-j-in-c
+				eij = cexp(- I * j * M_PI / n);  // https://stackoverflow.com/questions/2834865/computing-e-j-in-c
 			}
 			else {
-				eij = cpow(M_E, (I*j*M_PI)/nn);
-				// eij = cexp(I * j * M_PI / n);
+				eij = cexp(I * j * M_PI / n);
 			}
 
 			c[j] = even[j] + eij * odd[j];
@@ -475,8 +478,7 @@ void executar_teste(int tipo) {
 	* Baseado no teste 4 em: http://people.sc.fsu.edu/~jburkardt/c_src/fftpack4/fftpack4_prb.c
 	*/
 	int n;
-	int i, y;
-	double funcao;      
+	int i;  
 	double complex *c;
 	double complex *x; /* Vetor de amostras */
 	double complex *f; /* Vetor de valores da função em cada amostra */
@@ -511,8 +513,18 @@ void executar_teste(int tipo) {
 
 		case 2: /* Teste B */
 			n = 4;
-			f = criar_vetor_complexo(2*n);
 
+			x = criar_vetor_complexo(2*n);
+			x[0] = 0;
+   			x[1] = M_PI / 4;
+    		x[2] = M_PI / 2;
+    		x[3] = 3 * M_PI / 4;
+    		x[4] = M_PI;
+    		x[5] = 5 * M_PI / 4;
+    		x[6] = 3 * M_PI / 2;
+    		x[7] = 7 * M_PI / 4;
+
+			f = criar_vetor_complexo(2*n);
 			f[0] = 6;
 		    f[1] = 2;
 		    f[2] = 5;
@@ -535,18 +547,15 @@ void executar_teste(int tipo) {
 
 		case 3: /* Teste C */
 			n = 512;
+			x = criar_vetor_complexo(2*n);
 			f = criar_vetor_complexo(2*n);
 			f_2 = criar_vetor(2*n); /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
+			
 			for(i = 0; i < 2*n; i++) {
-		        y = (i * M_PI) / 512;
+		        x[i] = (i * M_PI) / 512; 
 
-		        funcao = 0;
-		        funcao = 10 * sin(y);
-		        funcao += 7 * cos(30 * y);
-		        funcao += 11 * sin(352 * y);
-		        funcao -= 8 * cos(711 * y);
-		        f[i] = funcao;
-		        f_2[i] = funcao;
+		        f[i] = 10*sin(x[i]) + 7*cos(30*x[i]) + 11*sin(352*x[i]) - 8*cos(711*x[i]);
+		        f_2[i] = 10*sin(x[i]) + 7*cos(30*x[i]) + 11*sin(352*x[i]) - 8*cos(711*x[i]);
 		    }
 			break;
 		default:
