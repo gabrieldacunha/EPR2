@@ -174,7 +174,7 @@ double complex* criar_vetor_complexo(int N) {
     /* Cria um vetor de N doubles complexos. */
     double complex *vetor;
 
-    vetor = (double complex*) malloc(N * sizeof(double complex));
+    vetor = (double complex*) calloc(N, sizeof(double complex));
 
     return vetor;
 }
@@ -203,6 +203,7 @@ void imprimir_complexo(double complex *c, int N) {
     for(i = 0; i < N; i++){
         printf("|%.2f %+.2fi|\n", creal(c[i]), cimag(c[i]));
     }
+    printf("\n");
 }
 
 int tamanho_arquivo(char *nome_arquivo, int *channels) {
@@ -377,6 +378,7 @@ void fftrec(double complex *c, double complex *f, int n, bool dir) {
 	double complex eij;
 	double complex *even, *odd, *fe, *fo;
 	int j; /* Variavel auxiliar*/
+	float nn = (float)n;
 
 	even = criar_vetor_complexo(n);
 	odd = criar_vetor_complexo(n);
@@ -397,12 +399,13 @@ void fftrec(double complex *c, double complex *f, int n, bool dir) {
 		fftrec(odd, fo, n/2, dir);
 
 		for(j = 0; j < n; j++) {
-
 			if(dir) {
-				eij = cexp(- I * j * M_PI / n);  // https://stackoverflow.com/questions/2834865/computing-e-j-in-c
+				eij = cpow(M_E, (-I*j*M_PI)/nn);
+				// eij = cexp(- I * j * M_PI / n);  // https://stackoverflow.com/questions/2834865/computing-e-j-in-c
 			}
 			else {
-				eij = cexp(I * j * M_PI / n);
+				eij = cpow(M_E, (I*j*M_PI)/nn);
+				// eij = cexp(I * j * M_PI / n);
 			}
 
 			c[j] = even[j] + eij * odd[j];
@@ -472,149 +475,152 @@ void executar_teste(int tipo) {
 	* Baseado no teste 4 em: http://people.sc.fsu.edu/~jburkardt/c_src/fftpack4/fftpack4_prb.c
 	*/
 	int n;
-	int nh;
-	int i, x;
-	double *a;
-	double a0;  
+	int i, y;
 	double funcao;      
-	double *b;
 	double complex *c;
-	double complex *c_linha;
-	double complex *amostras;
-	double complex *amostras_valores;
-	double *amostras_valores_2;
+	double complex *x; /* Vetor de amostras */
+	double complex *f; /* Vetor de valores da função em cada amostra */
+	double *f_2; /* Vetor de valores da função em cada amostra - usado no fftpack4 */
+	double *a, *b;
+	double a0; 
 	int *ifac;
 	double *wsave;
 
 	switch(tipo) {
-		case 1:
+		case 1: /* Teste A */
+			n = 2;
+
+			x = criar_vetor_complexo(2*n);
+			x[0] = 0;
+   			x[1] = M_PI / 2;
+    		x[2] = M_PI;
+    		x[3] = 3 * M_PI / 2;
+
+    		f = criar_vetor_complexo(2*n);
+    		f[0] = 5;
+		    f[1] = -1;
+		    f[2] = 3;
+		    f[3] = 1;
+
+		    f_2 = criar_vetor(2*n);  /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
+		    f_2[0] = 5;
+		    f_2[1] = -1;
+		    f_2[2] = 3;
+		    f_2[3] = 1;
+			break;
+
+		case 2: /* Teste B */
 			n = 4;
+			f = criar_vetor_complexo(2*n);
 
-			amostras = criar_vetor_complexo(n);
-			amostras[0] = 0;
-   			amostras[1] = M_PI / 2;
-    		amostras[2] = M_PI;
-    		amostras[3] = 3 * M_PI / 2;
+			f[0] = 6;
+		    f[1] = 2;
+		    f[2] = 5;
+		    f[3] = 2;
+		    f[4] = 11;
+		    f[5] = 2;
+		    f[6] = 8;
+		    f[7] = 8;
 
-    		amostras_valores = criar_vetor_complexo(n);
-    		amostras_valores[0] = 5;
-		    amostras_valores[1] = -1;
-		    amostras_valores[2] = 3;
-		    amostras_valores[3] = 1;
-
-		    amostras_valores_2 = criar_vetor(n);  /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
-		    amostras_valores_2[0] = 5;
-		    amostras_valores_2[1] = -1;
-		    amostras_valores_2[2] = 3;
-		    amostras_valores_2[3] = 1;
+		    f_2 = criar_vetor(2*n); /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
+	    	f_2[0] = 6;
+			f_2[1] = 2;
+			f_2[2] = 5;
+			f_2[3] = 2;
+			f_2[4] = 11;
+			f_2[5] = 2;
+			f_2[6] = 8;
+			f_2[7] = 8;
 			break;
 
-		case 2:
-			n = 8;
-			amostras_valores = criar_vetor_complexo(n);
-
-			amostras_valores[0] = 6;
-		    amostras_valores[1] = 2;
-		    amostras_valores[2] = 5;
-		    amostras_valores[3] = 2;
-		    amostras_valores[4] = 11;
-		    amostras_valores[5] = 2;
-		    amostras_valores[6] = 8;
-		    amostras_valores[7] = 8;
-
-		    amostras_valores_2 = criar_vetor(n); /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
-	    	amostras_valores_2[0] = 6;
-			amostras_valores_2[1] = 2;
-			amostras_valores_2[2] = 5;
-			amostras_valores_2[3] = 2;
-			amostras_valores_2[4] = 11;
-			amostras_valores_2[5] = 2;
-			amostras_valores_2[6] = 8;
-			amostras_valores_2[7] = 8;
-			break;
-
-		case 3:
-			n = 1024;
-			amostras_valores = criar_vetor_complexo(n);
-			amostras_valores_2 = criar_vetor(n); /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
-			for(i = 0; i < n; i++) {
-		        x = (i * M_PI) / 512;
+		case 3: /* Teste C */
+			n = 512;
+			f = criar_vetor_complexo(2*n);
+			f_2 = criar_vetor(2*n); /* No FFTPACK4, trabalha-se com valores em double e nao complexos: */
+			for(i = 0; i < 2*n; i++) {
+		        y = (i * M_PI) / 512;
 
 		        funcao = 0;
-		        funcao = 10 * sin(x);
-		        funcao += 7 * cos(30 * x);
-		        funcao += 11 * sin(352 * x);
-		        funcao -= 8 * cos(711 * x);
-		        amostras_valores[i] = funcao;
-		        amostras_valores_2[i] = funcao;
+		        funcao = 10 * sin(y);
+		        funcao += 7 * cos(30 * y);
+		        funcao += 11 * sin(352 * y);
+		        funcao -= 8 * cos(711 * y);
+		        f[i] = funcao;
+		        f_2[i] = funcao;
 		    }
 			break;
 		default:
 			break;
 	}
 
-	c = criar_vetor_complexo(n);
+	c = criar_vetor_complexo(2*n);
 
 	printf("Amostra original:\n");
-    imprimir_complexo(amostras_valores, n);
+    imprimir_complexo(f, 2*n);
 
 	printf("Transformada de Fourier direta:\n");
+	fourier(c, f, x, n);
+	imprimir_complexo(c, 2*n);
 
     printf("Antitransformada de Fourier direta:\n");
+    anti_fourier(c, f, x, n);
+	imprimir_complexo(f, 2*n);
 
 	printf("FFT Recursiva - Transformada - Vetor de coeficientes:\n");
-	fftrec(c, amostras_valores, n, true);  // Transformada direta pela fftrec
+	fftrec(c, f, n, true);  // Transformada direta pela fftrec
 
-	for(i = 0; i < n; i++){
-        printf("|%.2f %+.2fi|\n", creal(c[i]) / n, cimag(c[i]) / n);
+	/*Como indicado no algoritmo, faz-se necessaria a divisao dos coeficientes por 2N*/
+	for(i = 0; i < 2*n; i++){
+        c[i] = c[i]/(2*n);
     }
+    imprimir_complexo(c, 2*n);
 
-	fftrec(c, amostras_valores, n, false);  // Anti-transformada pela fftrec
-	
-	printf("FFT Recursiva - Antitransformada\n");
-    imprimir_complexo(amostras_valores, n);
+    printf("FFT Recursiva - Antitransformada\n");
+	fftrec(c, f, n, false);  // Anti-transformada pela fftrec	
+    imprimir_complexo(f, 2*n);
 
     printf("FFTPACK4:\n");
 	
 	wsave = criar_vetor(3 * n + 15);
 	ifac = criar_vetor_int(8);
+	a = criar_vetor(n/2);
+	b = criar_vetor(n/2);
 
+	n = 2*n; /* Dobra-se n para o uso nas funções do fftpack4 */
 	ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
-
-	nh = n / 2;
-	a = criar_vetor(nh);
-	b = criar_vetor(nh);
-	c_linha = criar_vetor_complexo(n);
-
-	ezfftf(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  // transformada direta de fourier
+	ezfftf(&n, f_2, &a0, a, b, wsave, ifac);  // transformada direta de fourier
+	n = n/2; /* Retorna-se para o valor de n original */
 
 	// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
-	c_linha[0] = a0 + 0 * I;
-	c_linha[nh] = a[nh-1];
+	c[0] = a0;
 
-	for(i = 1; i < nh; i++) {
-		c_linha[i] = (a[i-1] - (I * b[i-1]))/2;
-		c_linha[n-i] = (a[i-1] + (I * b[i-1]))/2;
+	for(i = 1; i < n; i++) {
+		c[i] = (a[i-1] - (I * b[i-1]))/2;	
+	}
+
+	c[n] = a[n-1] + I*b[n-1];
+
+	for(i = 1; i < n; i++) {
+		c[2*n-i] = (a[i-1] + (I * b[i-1]))/2;
 	}
 
 	printf("Vetor de coeficientes de Fourier:\n");
-    imprimir_complexo(c_linha, n);
+    imprimir_complexo(c, 2*n);
 
-	ezfftb(&n, amostras_valores_2, &a0, a, b, wsave, ifac);  // anti-transformada de fourier
-
-	printf("Amostra anti-transformada:\n");
-    imprimir_vetor(amostras_valores_2, n);
+    printf("Amostra anti-transformada:\n");
+	n = 2*n; /* Dobra-se n para o uso nas funções do fftpack4 */
+	ezfftb(&n, f_2, &a0, a, b, wsave, ifac);  // anti-transformada de fourier
+    imprimir_vetor(f_2, n);
 
 	free(a);
 	free(b);
 	free(c);
-	free(c_linha);
-	free(amostras_valores);
-	free(amostras_valores_2);
+	free(f);
+	free(f_2);
 	free(ifac);
 	free(wsave);
 	if (tipo == 1) {
-		free(amostras);
+		free(x);
 	}
 }
 
