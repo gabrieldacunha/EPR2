@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <string.h>
+#include <time.h>
 
 #include "fftpack4.h"
 
@@ -23,8 +24,8 @@ void imprimir_complexo(double complex *c, int N);
 
 /* >>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<< */
 int tamanho_arquivo(char *nome_arquivo, int *canais);
-int ler_arquivo_dat(char *nome_arquivo, int N, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f_linha2);
-void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int N, double complex *x, double complex *f, double complex *f2);
+int ler_arquivo_dat(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f_linha2);
+void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double complex *f, double complex *f2);
 void fourier(double complex *c, double complex *f, double complex *x, int n);
 void anti_fourier(double complex *c, double complex *f, double complex *x, int n);
 void fftrec(double complex *c, double complex *f, int n, bool dir);
@@ -49,7 +50,7 @@ int main() {
 	char nome_arquivo[128];
 	double complex *c2; // Vetor de coeficientes para o segundo canal
     double complex *f2; // Vetor de valores da função para o segundo canal
-    int sample_rate, canais;
+    int canais, sample_rate; // Parametros fornecidos pelo arquivo
     int K, K1, K2; // Parametros de corte utilizados nos filtros
     int S; // Parametro de compressao
 
@@ -154,7 +155,7 @@ int main() {
 			// No FFTPACK4, trabalha-se com valores em double e nao complexos
 			f_linha = criar_vetor(2*n); 
 			f_linha2 = criar_vetor(2*n);
-			// Leitura do arquivo
+			// Preenchimento dos vetores de acordo com o arquivo
 			sample_rate = ler_arquivo_dat(nome_arquivo, n, x, f, f2, f_linha, f_linha2);
             break;
 
@@ -226,6 +227,8 @@ int main() {
 		n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
 		ezfftb(&n, f_linha, &a0, a, b, wsave, ifac);  // Antitransformada de fourier
 	    imprimir_vetor(f_linha, n);
+	    n = n/2; // Retorna-se para o valor de n original
+
         
     } else { // Para os arquivos de audio
     	c = criar_vetor_complexo(2*n);
@@ -249,7 +252,7 @@ int main() {
 				if(canais == 2) {
 					fourier(c2, f2, x, n);
 				}
-				printf("\nTransformada de Fourier (Forma Direta) realizada.\n\n");
+				printf("\nTransformada de Fourier realizada.\n\n");
 				break;
 
 			case 2:
@@ -282,9 +285,9 @@ int main() {
 
 				n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
 				ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
-				ezfftf(&n, f_linha, &a0, a, b, wsave, ifac);  // transformada direta de fourier
+				ezfftf(&n, f_linha, &a0, a, b, wsave, ifac);  // transformada
 				n = n/2; // Retorna-se para o valor de n original
-
+			
 				// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 				c[0] = a0;
 				for(int i = 1; i < n; i++) {
@@ -312,6 +315,9 @@ int main() {
 					}
 				}
 				break;
+			default:
+				printf("Opcao invalida!\n");
+            	break;
         }
 
 
@@ -320,12 +326,13 @@ int main() {
         printf("Deseja aplicar um filtro no sinal?\n");
         printf("1 - Sim\n");
 	    printf("2 - Nao\n");
+	    printf("Resposta: ");
 	    scanf("%d", &escolha);
 	    if (escolha == 1) {
-	    	printf("1 - Passa-altas\n");
+	    	printf("\n1 - Passa-altas\n");
 	    	printf("2 - Passa-baixas\n");
 	    	printf("3 - Passa-bandas\n");
-	    	printf("Digite o filtro desejado: \n");
+	    	printf("Digite o filtro desejado: ");
 	    	scanf("%d", &tipo_filtro);
 	    	printf("O sinal analisado tem %d amostras. \n", 2*n);	    
 	    	switch(tipo_filtro) {
@@ -368,9 +375,10 @@ int main() {
 
 	    // Compressao
 
-	    printf("Deseja comprimir o sinal?\n");
+	    printf("\nDeseja comprimir o sinal?\n");
         printf("1 - Sim\n");
 	    printf("2 - Nao\n");
+	    printf("Resposta: ");
 	    scanf("%d", &escolha);
 	    if (escolha == 1) {
 	    	printf("Digite o parametro de compressao S: ");
@@ -393,7 +401,7 @@ int main() {
 			    if(canais == 2){
 			    	anti_fourier(c2, f2, x, n);
 			    }
-			    printf("\nAntitransformada de Fourier (forma direta) aplicada.\n\n");
+			    printf("\nAntitransformada de Fourier aplicada.\n\n");
 				break;
 
 			case 2:
@@ -410,6 +418,7 @@ int main() {
 			    if(canais == 2){
 			    	ezfftb(&n, f_linha2, &a02, a2, b2, wsave2, ifac2);  
 			    }	
+			    n = n/2; // Retorna-se para o valor de n original
 			    printf("\nAntitransformada de Fourier (FFTPACK4) aplicada.\n\n");
 			    break;
         }
@@ -427,16 +436,6 @@ int main() {
 	    	printf("\nDigite o nome do arquivo a ser escrito (com a terminacao .dat): ");
 	    	scanf("%s", nome_arquivo);
 	    	// Escreve o resultado da analise no arquivo
-	    	if(tipo_transformada == 3) {
-	    		for(int i = 0; i < 2*n; i++){
-	    			f[i] = (complex double)f_linha[i];
-	    		}
-	    		if(canais ==2) {
-	    			for(int i = 0; i < 2*n; i++){
-	    				f2[i] = (complex double)f_linha2[i];
-	    			}	
-	    		}
-	    	}
 	    	escrever_arquivo_dat(nome_arquivo, sample_rate, canais, n, x, f, f2);
 	    	printf("\nArquivo gravado com sucesso!\n");
 	    } 
@@ -517,9 +516,9 @@ void imprimir_complexo(double complex *c, int N) {
 }
 
 int tamanho_arquivo(char *nome_arquivo, int *canais) {
-	int n = 0;
+	int n;
 	int var_temp1;
-	double var_temp2, var_temp3, var_temp4;  // estas variaveis nao tem funcao de fato
+	double var_temp2, var_temp3, var_temp4;
 	char linha[512];
 
 	FILE *arquivo = fopen(nome_arquivo, "r");
@@ -530,7 +529,7 @@ int tamanho_arquivo(char *nome_arquivo, int *canais) {
     }
 
     // Passando pelas duas primeiras linhas
-    fscanf(arquivo, "%*[^0-9]%d", &var_temp1);
+    fscanf(arquivo, "%*[^0-9]%d", &n);
     fscanf(arquivo, "%*[^0-9]%d", &var_temp1);
 
     *canais = var_temp1; // retornando numero de canais por meio de um ponteiro
@@ -561,13 +560,14 @@ int tamanho_arquivo(char *nome_arquivo, int *canais) {
         printf("Numero de canais nao suportado para analise\n");
     }
 
+    fclose(arquivo);
     return n;
+
 }
 
 
-int ler_arquivo_dat(char *nome_arquivo, int N, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f_linha2) {
-	int i = 0;
-	int sample_rate, canais;
+int ler_arquivo_dat(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f_linha2) {
+	int sample_rate, channels;
 	double var_x, var_f, var_f2;
 	char linha[512];
 
@@ -580,31 +580,26 @@ int ler_arquivo_dat(char *nome_arquivo, int N, double complex *x, double complex
 
     /* Solucao para fscanf encontrada em: https://stackoverflow.com/questions/19413569/can-i-use-fscanf-to-get-only-digits-from-text-that-contain-chars-and-ints */
     fscanf(arquivo, "%*[^0-9]%d", &sample_rate);  // Sample Rate
-    fscanf(arquivo, "%*[^0-9]%d", &canais);  // Channels
+    fscanf(arquivo, "%*[^0-9]%d", &channels);  // Channels
 
     /* leitura de dados do arquivo */
-    if(canais == 1) {
-    	while(fgets(linha, sizeof(linha), arquivo) != NULL) { /* pega uma linha de até 512 caracteres. Null quando acabar as linhas */
-	        sscanf(linha, "%lf %lf", &var_x, &var_f);
+    if(channels == 1) {
 
-	        x[i] = var_x;  // vetor de x na amostragem
-	        f[i] = var_f;  // amplitude do sinal
-	        f_linha[i] = var_f; // amplitude do sinal - para fftpack4
-	        i++;  // posicao de alocacao no vetor acompanha a passagem de linhas
-        }
+    	for (int i = 0; i < n; i++) {
+	        fscanf(arquivo, "%lf", &x[i]);
+	        fscanf(arquivo, "%lf", &f[i]);
+	        f_linha[i] = f[i]; // amplitude do sinal - para fftpack4
+    	}
     }
 
-    else if(canais == 2) {
-    	while(fgets(linha, sizeof(linha), arquivo) != NULL) { /* pega uma linha de até 512 caracteres. Null quando acabar as linhas */
-	        sscanf(linha, "%lf %lf %lf", &var_x, &var_f, &var_f2);
-
-	        x[i] = var_x;  // vetor de x na amostragem
-	        f[i] = var_f;  // amplitude do sinal do canal 1
-	        f_linha[i] = var_f; // amplitude do sinal do canal 1 - para fftpack4
-	        f2[i] = var_f2;  // amplitude do sinal do canal 2
-	        f_linha2[i] = var_f2; // amplitude do sinal do canal 2 - para fftpack4
-	        i++;  // posicao de alocacao no vetor acompanha a passagem de linhas
-	    }
+    else if(channels == 2) {
+    	for (int i = 0; i < n; i++) {
+	        fscanf(arquivo, "%lf", &x[i]);
+	        fscanf(arquivo, "%lf", &f[i]);
+	        fscanf(arquivo, "%lf", &f2[i]);
+	        f_linha[i] = f[i]; // amplitude do sinal - para fftpack4
+	        f_linha2[i] = f2[i]; // amplitude do sinal - para fftpack4
+    	}
     }
 
     else {
@@ -612,12 +607,11 @@ int ler_arquivo_dat(char *nome_arquivo, int N, double complex *x, double complex
     }
 
     fclose(arquivo);
-
     return sample_rate;
 }
 
 
-void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int N, double complex *x, double complex *f, double complex *f2) {
+void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double complex *f, double complex *f2) {
 	int i;
 	FILE *arquivo = fopen(nome_arquivo, "w");
 
@@ -627,15 +621,15 @@ void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int N
 
 	// Se houver apenas 1 canal, havera 2 colunas de dados
 	if(canais == 1) {
-		for(i = 0; i < N; i++) {
-			fprintf(arquivo, " %lf %lf\n", creal(x[i]), creal(f[i]));
+		for(i = 0; i < n; i++) {
+			fprintf(arquivo, "%.13lf %.13lf\n", creal(x[i]), creal(f[i]));
 		}
 	}
 
 	// Se houverem 2 canais, havera 3 colunas de dados
 	else if(canais == 2) {
-		for(i = 0; i < N; i++) {
-			fprintf(arquivo, " %lf %lf %lf\n", creal(x[i]), creal(f[i]), creal(f2[i]));
+		for(i = 0; i < n; i++) {
+			fprintf(arquivo, "%.13lf %.13lf %.13lf\n", creal(x[i]), creal(f[i]), creal(f2[i]));
 		}
 	}
 	else {
@@ -658,7 +652,7 @@ void fourier(double complex *c, double complex *f, double complex *x, int n){
         for (int j = 0; j < 2*n; j++){
             somatorio += f[j]* cexp(-I * k * x[j]);
         }
-        c[k] = somatorio * ((double)1 / (double)(2*n));
+        c[k] = somatorio * (double)1 / (2*n);
     }
 }
 
