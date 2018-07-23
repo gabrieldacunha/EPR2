@@ -24,8 +24,9 @@ void imprimir_complexo(double complex *c, int N);
 
 /* >>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<< */
 int tamanho_arquivo(char *nome_arquivo, int *canais);
-int ler_arquivo_dat(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f_linha2);
+int ler_arquivo_dat(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f2_linha);
 void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double complex *f, double complex *f2);
+void escrever_arquivo_dat_linha(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double *f_linha, double *f2_linha);
 void fourier(double complex *c, double complex *f, double complex *x, int n);
 void anti_fourier(double complex *c, double complex *f, double complex *x, int n);
 void fftrec(double complex *c, double complex *f, int n, bool dir);
@@ -61,7 +62,7 @@ int main() {
 	double a0, a02; 
 	int *ifac, *ifac2;
 	double *wsave, *wsave2;
-	double *f_linha, *f_linha2; 
+	double *f_linha, *f2_linha; 
 
     printf("EP2 - Numerico\n\n");
     printf("1 - Teste a\n");
@@ -156,9 +157,9 @@ int main() {
 			f2 = criar_vetor_complexo(2*n);
 			// No FFTPACK4, trabalha-se com valores em double e nao complexos
 			f_linha = criar_vetor(2*n); 
-			f_linha2 = criar_vetor(2*n);
+			f2_linha = criar_vetor(2*n);
 			// Preenchimento dos vetores de acordo com o arquivo
-			sample_rate = ler_arquivo_dat(nome_arquivo, n, x, f, f2, f_linha, f_linha2);
+			sample_rate = ler_arquivo_dat(nome_arquivo, n, x, f, f2, f_linha, f2_linha);
             break;
 
         default:
@@ -167,6 +168,14 @@ int main() {
     }
 
 	if(tipo_problema != 4) { // Testes a, b, c:
+		//Desaloca-se os ponteiros que nao serao utilizados
+		c2 = NULL;
+		f2 = NULL;
+		f2_linha = NULL;
+		ifac2 = NULL;
+		wsave2 = NULL;
+		a2 = NULL;
+		b2 = NULL;
 		printf("\nO sinal analisado tem %d amostras. \n", n);	
 		c = criar_vetor_complexo(2*n);
 
@@ -222,8 +231,8 @@ int main() {
 		tempo[0] = clock();
 		wsave = criar_vetor(3 * n + 15);
 		ifac = criar_vetor_int(8);
-		a = criar_vetor(n/2);
-		b = criar_vetor(n/2);
+		a = criar_vetor((n-1)/2);
+		b = criar_vetor((n-1)/2);
 
 		n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
 		ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
@@ -259,17 +268,18 @@ int main() {
 		free(wsave);
 		free(a);
 		free(b);
-		free(ifac2);
-		free(wsave2);
-		free(a2);
-		free(b2);
 		free(c);
-		free(c2);
 		free(x);
 		free(f);
-		free(f2);
 		free(f_linha);
-		free(f_linha2);
+		ifac = NULL;
+		wsave = NULL;
+		a = NULL;
+		b = NULL;
+		c = NULL;
+		x = NULL;
+		f = NULL;
+		f_linha = NULL;
 	    return 0;
 
         
@@ -278,6 +288,10 @@ int main() {
     	c = criar_vetor_complexo(2*n);
     	if(canais == 2) {
 			c2 = criar_vetor_complexo(2*n);
+		} else {
+			//Desaloca-se os ponteiros que nao serao utilizados
+			c2 = NULL;
+			f2 = NULL;
 		}
     	
 		printf("1 - Forma direta\n");
@@ -291,6 +305,16 @@ int main() {
 
 		switch(tipo_transformada) {
 			case 1:
+				//Desaloca-se os ponteiros que nao serao utilizados
+				ifac = NULL;
+				wsave = NULL;
+				a = NULL;
+				b = NULL;
+				ifac2 = NULL;
+				wsave2 = NULL;
+				a2 = NULL;
+				b2 = NULL;
+
 				tempo[0] = clock();
 				fourier(c, f, x, n);
 				if(canais == 2) {
@@ -302,6 +326,16 @@ int main() {
 				break;
 
 			case 2:
+				//Desaloca-se os ponteiros que nao serao utilizados
+				ifac = NULL;
+				wsave = NULL;
+				a = NULL;
+				b = NULL;
+				ifac2 = NULL;
+				wsave2 = NULL;
+				a2 = NULL;
+				b2 = NULL;
+
 				tempo[0] = clock();
 				fftrec(c, f, n, true);
 				if(canais == 2) {
@@ -322,15 +356,28 @@ int main() {
 			    break;
 
 			case 3:
+				//Desaloca-se os vetores que nao serao utilizados
+				free(f);
+				free(f2);
+
 				tempo[0] = clock();
 				wsave = criar_vetor(3 * n + 15);
 				ifac = criar_vetor_int(8);
 				a = criar_vetor(n/2);
 				b = criar_vetor(n/2);
-				wsave2 = criar_vetor(3 * n + 15);
-				ifac2 = criar_vetor_int(8);
-				a2 = criar_vetor(n/2);
-				b2 = criar_vetor(n/2);
+				if(canais == 2) {
+					wsave2 = criar_vetor(3 * n + 15);
+					ifac2 = criar_vetor_int(8);
+					a2 = criar_vetor(n/2);
+					b2 = criar_vetor(n/2);
+				} else {
+					//Desaloca-se os ponteiros que nao serao utilizados
+					ifac2 = NULL;
+					wsave2 = NULL;
+					a2 = NULL;
+					b2 = NULL;
+				}
+				
 
 				n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
 				ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
@@ -350,7 +397,7 @@ int main() {
 				if(canais == 2) {
 					n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
 					ezffti(&n, wsave2, ifac2);  // inicializacao da fftpack4
-					ezfftf(&n, f_linha2, &a02, a2, b2, wsave2, ifac2);  // transformada direta de fourier
+					ezfftf(&n, f2_linha, &a02, a2, b2, wsave2, ifac2);  // transformada direta de fourier
 					n = n/2; // Retorna-se para o valor de n original
 
 					// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
@@ -451,8 +498,14 @@ int main() {
 			case 1:
 				tempo[0] = clock();
 			    anti_fourier(c, f, x, n);
+			    //Desalocando memoria
+			    free(c);
+			    c = NULL;
 			    if(canais == 2){
 			    	anti_fourier(c2, f2, x, n);
+			    	//Desalocando memoria
+			    	free(c2);
+			    	c2 = NULL;
 			    }
 			    tempo[1] = clock();
 			    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
@@ -462,8 +515,14 @@ int main() {
 			case 2:
 				tempo[0] = clock();
 				fftrec(c, f, n, false);
+				//Desalocando memoria
+			    free(c);
+			    c = NULL;
 				if(canais == 2){
 			    	fftrec(c2, f2, n, false);
+			    	//Desalocando memoria
+			    	free(c2);
+			    	c2 = NULL;
 			    }
 			    tempo[1] = clock();	
 			    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
@@ -472,10 +531,47 @@ int main() {
 
 			case 3:
 				tempo[0] = clock();
+				//Conversao do vetor de coeficientes c para a0, a b:
+				// a0 = c[0];
+				// for(int k = 1; k < n; k++) {
+				// 	a[k-1] = c[k] + c[2*n-i];
+				// 	b[k-1] = 
+				// }
+
+
+
+
+				//Desalocando memoria
+			    free(c);
+			    c = NULL;
+				if(canais == 2) {
+			    	free(c2);
+			    	c2 = NULL;
+			    }
+
 				n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
-				ezfftb(&n, f_linha, &a0, a, b, wsave, ifac);  
+				ezfftb(&n, f_linha, &a0, a, b, wsave, ifac); 
+				//Desalocando memoria
+				free(a);
+				free(b);
+				free(wsave);
+				free(ifac);
+				a = NULL;
+				b = NULL;
+				wsave = NULL;
+				ifac = NULL;
+
 			    if(canais == 2){
-			    	ezfftb(&n, f_linha2, &a02, a2, b2, wsave2, ifac2);  
+			    	ezfftb(&n, f2_linha, &a02, a2, b2, wsave2, ifac2);
+			    	//Desalocando memoria
+					free(a2);
+					free(b2);
+					free(wsave2);
+					free(ifac2);
+					a2 = NULL;
+					b2 = NULL;
+					wsave2 = NULL;
+					ifac2 = NULL;  
 			    }	
 			    n = n/2; // Retorna-se para o valor de n original
 			    tempo[1] = clock();
@@ -497,27 +593,33 @@ int main() {
 	    	printf("\nDigite o nome do arquivo a ser escrito (com a terminacao .dat): ");
 	    	scanf("%s", nome_arquivo);
 	    	// Escreve o resultado da analise no arquivo
-	    	escrever_arquivo_dat(nome_arquivo, sample_rate, canais, n, x, f, f2);
+	    	if(tipo_transformada != 3) {
+	    		escrever_arquivo_dat(nome_arquivo, sample_rate, canais, n, x, f, f2);
+	    		// Desalocacao de memoria
+	    		free(f);
+	    		free(x);
+	    		if(canais == 2) {
+	    			free(f2);
+	    		}
+	    	}
+	    	else {
+	    		escrever_arquivo_dat_linha(nome_arquivo, sample_rate, canais, n, x, f_linha, f2_linha);
+	    		free(f_linha);
+	    		free(x);
+	    		if(canais == 2) {
+	    			free(f2_linha);
+	    		}
+	    	}
 	    	printf("\nArquivo gravado com sucesso!\n");
 	    } 
     }
 
-    // Desalocacao de memoria
-    free(ifac);
-	free(wsave);
-	free(a);
-	free(b);
-	free(ifac2);
-	free(wsave2);
-	free(a2);
-	free(b2);
-	free(c);
-	free(c2);
-	free(x);
-	free(f);
-	free(f2);
-	free(f_linha);
-	free(f_linha2);
+    // Desalocacao de ponteiros
+	x = NULL;
+	f = NULL;
+	f2 = NULL;
+	f_linha = NULL;
+	f2_linha = NULL;
 	return 0;
 }
 
@@ -623,7 +725,7 @@ int tamanho_arquivo(char *nome_arquivo, int *canais) {
 }
 
 
-int ler_arquivo_dat(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f_linha2) {
+int ler_arquivo_dat(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f2_linha) {
 	int sample_rate, channels;
 	double var_x, var_f, var_f2;
 	char linha[512];
@@ -655,7 +757,7 @@ int ler_arquivo_dat(char *nome_arquivo, int n, double complex *x, double complex
 	        fscanf(arquivo, "%lf", &f[i]);
 	        fscanf(arquivo, "%lf", &f2[i]);
 	        f_linha[i] = f[i]; // amplitude do sinal - para fftpack4
-	        f_linha2[i] = f2[i]; // amplitude do sinal - para fftpack4
+	        f2_linha[i] = f2[i]; // amplitude do sinal - para fftpack4
     	}
     }
 
@@ -695,6 +797,33 @@ void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int n
 	fclose(arquivo);
 }
 
+void escrever_arquivo_dat_linha(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double *f_linha, double *f2_linha) {
+	int i;
+	FILE *arquivo = fopen(nome_arquivo, "w");
+
+	// Escreve a sample rate e o numero de canais no mesmo formato dos arquivos .dat fornecidos
+	fprintf(arquivo, "; Sample Rate %d\n", sample_rate);
+	fprintf(arquivo, "; Channels %d\n", canais);
+
+	// Se houver apenas 1 canal, havera 2 colunas de dados
+	if(canais == 1) {
+		for(i = 0; i < n; i++) {
+			fprintf(arquivo, "%.13lf %.13lf\n", creal(x[i]), f_linha[i]);
+		}
+	}
+
+	// Se houver 2 canais, havera 3 colunas de dados
+	else if(canais == 2) {
+		for(i = 0; i < n; i++) {
+			fprintf(arquivo, "%.13lf %.13lf %.13lf\n", creal(x[i]), f_linha[i], f2_linha[i]);
+		}
+	}
+	else {
+		printf("Numero de canais nao suportado.\n");
+	}
+	fclose(arquivo);
+}
+
 
 /* >>>>>>>>>>>>>>>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<<<<<<<<<<<<<<< */
 
@@ -709,7 +838,7 @@ void fourier(double complex *c, double complex *f, double complex *x, int n){
         for (int j = 0; j < 2*n; j++){
             somatorio += f[j]* cexp(-I * k * x[j]);
         }
-        c[k] = somatorio * (double)1 / (2*n);
+        c[k] = somatorio / ((double)2 * n);
     }
 }
 
