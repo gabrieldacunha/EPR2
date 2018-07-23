@@ -44,6 +44,8 @@ int main() {
 	double complex *f; // Vetor de valores da função em cada amostra
 	int tipo_problema, tipo_transformada;
 	bool direta; // Usado na fftrec
+	clock_t tempo[2]; // Usado para medir o tempo de execucao
+	double tempo_execucao;
 
 	// Variaveis especificas dos arquivos de audio
 	int escolha, tipo_filtro, tipo_compressao;
@@ -173,34 +175,51 @@ int main() {
 		imprimir_complexo(f, 2*n);
 
 		printf("Transformada de Fourier - Vetor de coeficientes:\n");
+		tempo[0] = clock();
 		fourier(c, f, x, n);
+		tempo[1] = clock();
+		tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 		imprimir_complexo(c, 2*n);
+		printf("\nTempo gasto: %g ms.\n", tempo_execucao);
 
 	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
+	    tempo[0] = clock();
 	    anti_fourier(c, f, x, n);
+	    tempo[1] = clock();
+	    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 		imprimir_complexo(f, 2*n);
+		printf("\nTempo gasto: %g ms.\n", tempo_execucao);
 
 		printf("\n------------- FFT Recursiva ---------------\n\n");
 		printf("Amostra original do sinal:\n");
 	    imprimir_complexo(f, 2*n);
 
 		printf("Transformada de Fourier - Vetor de coeficientes:\n");
+		tempo[0] = clock();
 		fftrec(c, f, n, true);  // Transformada direta pela fftrec
+		
 
 		// Como indicado no algoritmo, faz-se necessaria a divisao dos coeficientes por 2N
 		for(int i = 0; i < 2*n; i++){
 	        c[i] = c[i]/(2*n);
 	    }
+	    tempo[1] = clock();
+	    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 	    imprimir_complexo(c, 2*n);
+	    printf("\nTempo gasto: %g ms.\n", tempo_execucao);
 
 	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
-		fftrec(c, f, n, false);  // Anti-transformada pela fftrec	
+	    tempo[0] = clock();
+		fftrec(c, f, n, false);  // Anti-transformada pela fftrec
+		tempo[1] = clock();	
+		tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 	    imprimir_complexo(f, 2*n);
+	    printf("\nTempo gasto: %g ms.\n", tempo_execucao);
 
 		printf("\n------------- FFTPACK4 ---------------\n\n");
 	    printf("Amostra original do sinal:\n");
 	    imprimir_complexo(f, 2*n);
-		
+		tempo[0] = clock();
 		wsave = criar_vetor(3 * n + 15);
 		ifac = criar_vetor_int(8);
 		a = criar_vetor(n/2);
@@ -220,15 +239,20 @@ int main() {
 		for(int i = 1; i < n; i++) {
 			c[2*n-i] = (a[i-1] + (I * b[i-1]))/2;
 		}
-
+		tempo[1] = clock();
+		tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 		printf("Transformada de Fourier - Vetor de coeficientes:\n");
 	    imprimir_complexo(c, 2*n);
+	    printf("\nTempo gasto: %g ms.\n", tempo_execucao);
 
 	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
+	    tempo[0] = clock();
 		n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
 		ezfftb(&n, f_linha, &a0, a, b, wsave, ifac);  // Antitransformada de fourier
+	    tempo[1] = clock();
+	    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 	    imprimir_vetor(f_linha, n);
-	    n = n/2; // Retorna-se para o valor de n original
+	    printf("\nTempo gasto: %g ms.\n", tempo_execucao);
 
 	    // Desalocacao de memoria
 	    free(ifac);
@@ -267,15 +291,18 @@ int main() {
 
 		switch(tipo_transformada) {
 			case 1:
-
+				tempo[0] = clock();
 				fourier(c, f, x, n);
 				if(canais == 2) {
 					fourier(c2, f2, x, n);
 				}
-				printf("\nTransformada de Fourier realizada.\n\n");
+				tempo[1] = clock();
+				tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
+				printf("\nTransformada de Fourier realizada em %g ms.\n\n", tempo_execucao);
 				break;
 
 			case 2:
+				tempo[0] = clock();
 				fftrec(c, f, n, true);
 				if(canais == 2) {
 					fftrec(c2, f2, n, true);
@@ -289,11 +316,13 @@ int main() {
 			        	c2[i] = c[i]/(2*n);
 			   		}
 			    }
-				printf("\nTransformada de Fourier (Forma Recursiva) realizada.\n\n");
+			    tempo[1] = clock();
+			    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
+				printf("\nTransformada de Fourier (Forma Recursiva) realizada em %g ms.\n\n", tempo_execucao);
 			    break;
 
 			case 3:
-				
+				tempo[0] = clock();
 				wsave = criar_vetor(3 * n + 15);
 				ifac = criar_vetor_int(8);
 				a = criar_vetor(n/2);
@@ -334,6 +363,9 @@ int main() {
 						c2[2*n-i] = (a2[i-1] + (I * b2[i-1]))/2;
 					}
 				}
+				tempo[1] = clock();
+				tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
+				printf("\nTransformada de Fourier (FFTPACK4) realizada em %g ms.\n\n", tempo_execucao);
 				break;
 			default:
 				printf("Opcao invalida!\n");
@@ -417,29 +449,38 @@ int main() {
 
         switch(tipo_transformada) {
 			case 1:
+				tempo[0] = clock();
 			    anti_fourier(c, f, x, n);
 			    if(canais == 2){
 			    	anti_fourier(c2, f2, x, n);
 			    }
-			    printf("\nAntitransformada de Fourier aplicada.\n\n");
+			    tempo[1] = clock();
+			    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
+			    printf("\nAntitransformada de Fourier aplicada em %g ms.\n\n", tempo_execucao);
 				break;
 
 			case 2:
+				tempo[0] = clock();
 				fftrec(c, f, n, false);
 				if(canais == 2){
 			    	fftrec(c2, f2, n, false);
-			    }	
-				printf("\nAntitransformada de Fourier (FFT Recursiva) aplicada.\n\n");
+			    }
+			    tempo[1] = clock();	
+			    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
+				printf("\nAntitransformada de Fourier (FFT Recursiva) aplicada em %g ms.\n\n", tempo_execucao);
 			    break;
 
 			case 3:
+				tempo[0] = clock();
 				n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
 				ezfftb(&n, f_linha, &a0, a, b, wsave, ifac);  
 			    if(canais == 2){
 			    	ezfftb(&n, f_linha2, &a02, a2, b2, wsave2, ifac2);  
 			    }	
 			    n = n/2; // Retorna-se para o valor de n original
-			    printf("\nAntitransformada de Fourier (FFTPACK4) aplicada.\n\n");
+			    tempo[1] = clock();
+			    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
+			    printf("\nAntitransformada de Fourier (FFTPACK4) aplicada em %g ms.\n\n", tempo_execucao);
 			    break;
         }
 
