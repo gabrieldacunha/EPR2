@@ -165,6 +165,7 @@ int main() {
     }
 
 	if(tipo_problema != 4) { // Testes a, b, c:
+		printf("\nO sinal analisado tem %d amostras. \n", n);	
 		c = criar_vetor_complexo(2*n);
 
 		printf("\n------------- Forma Direta ---------------\n\n");
@@ -228,9 +229,11 @@ int main() {
 		ezfftb(&n, f_linha, &a0, a, b, wsave, ifac);  // Antitransformada de fourier
 	    imprimir_vetor(f_linha, n);
 	    n = n/2; // Retorna-se para o valor de n original
+	    return 0;
 
         
     } else { // Para os arquivos de audio
+    	printf("\nO sinal analisado tem %d amostras. \n", n);	
     	c = criar_vetor_complexo(2*n);
     	if(canais == 2) {
 			c2 = criar_vetor_complexo(2*n);
@@ -334,7 +337,7 @@ int main() {
 	    	printf("3 - Passa-bandas\n");
 	    	printf("Digite o filtro desejado: ");
 	    	scanf("%d", &tipo_filtro);
-	    	printf("O sinal analisado tem %d amostras. \n", 2*n);	    
+	    	printf("O sinal analisado tem %d amostras. \n", n);	    
 	    	switch(tipo_filtro) {
 	    		case 1:
 	    			printf("Digite o parametro de corte K: ");
@@ -516,7 +519,7 @@ void imprimir_complexo(double complex *c, int N) {
 }
 
 int tamanho_arquivo(char *nome_arquivo, int *canais) {
-	int n;
+	int n = -1;
 	int var_temp1;
 	double var_temp2, var_temp3, var_temp4;
 	char linha[512];
@@ -529,7 +532,7 @@ int tamanho_arquivo(char *nome_arquivo, int *canais) {
     }
 
     // Passando pelas duas primeiras linhas
-    fscanf(arquivo, "%*[^0-9]%d", &n);
+    fscanf(arquivo, "%*[^0-9]%d", &var_temp1);
     fscanf(arquivo, "%*[^0-9]%d", &var_temp1);
 
     *canais = var_temp1; // retornando numero de canais por meio de um ponteiro
@@ -538,10 +541,8 @@ int tamanho_arquivo(char *nome_arquivo, int *canais) {
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { // pega uma linha de até 512 caracteres. Null quando acabar as linhas 
 
 	        sscanf(linha, "%lf %lf", &var_temp2, &var_temp3);
-
-	        if(var_temp2 != 0) {
-	        	n++;  // contando o numero de dados
-	        }
+	        n++;  // contando o numero de dados
+	        
         }
     }
 
@@ -549,10 +550,8 @@ int tamanho_arquivo(char *nome_arquivo, int *canais) {
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { // pega uma linha de até 512 caracteres. Null quando acabar as linhas
 
 	        sscanf(linha, "%lf %lf %lf", &var_temp2, &var_temp3, &var_temp4);
-
-	        if(var_temp2 != 0) {
-	        	n++;
-	        }
+	        n++;
+	       
 	    }
     }
 
