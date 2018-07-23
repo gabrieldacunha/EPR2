@@ -76,21 +76,21 @@ int main() {
     switch(tipo_problema) {
 
         case 1: // Teste a
-        	n = 2;
+        	n = 4;
 
-			x = criar_vetor_complexo(2*n);
+			x = criar_vetor_complexo(n);
 			x[0] = 0;
    			x[1] = M_PI / 2;
     		x[2] = M_PI;
     		x[3] = 3 * M_PI / 2;
 
-    		f = criar_vetor_complexo(2*n);
+    		f = criar_vetor_complexo(n);
     		f[0] = 5;
 		    f[1] = -1;
 		    f[2] = 3;
 		    f[3] = 1;
 
-		    f_linha = criar_vetor(2*n);  // No FFTPACK4, trabalha-se com valores em double e nao complexos:
+		    f_linha = criar_vetor(n);  // No FFTPACK4, trabalha-se com valores em double e nao complexos:
 		    f_linha[0] = 5;
 		    f_linha[1] = -1;
 		    f_linha[2] = 3;
@@ -98,9 +98,9 @@ int main() {
             break;
 
         case 2: // Teste b
-        	n = 4;
+        	n = 8;
 
-			x = criar_vetor_complexo(2*n);
+			x = criar_vetor_complexo(n);
 			x[0] = 0;
    			x[1] = M_PI / 4;
     		x[2] = M_PI / 2;
@@ -110,7 +110,7 @@ int main() {
     		x[6] = 3 * M_PI / 2;
     		x[7] = 7 * M_PI / 4;
 
-			f = criar_vetor_complexo(2*n);
+			f = criar_vetor_complexo(n);
 			f[0] = 6;
 		    f[1] = 2;
 		    f[2] = 5;
@@ -120,7 +120,7 @@ int main() {
 		    f[6] = 8;
 		    f[7] = 8;
 
-		    f_linha = criar_vetor(2*n); // No FFTPACK4, trabalha-se com valores em double e nao complexos
+		    f_linha = criar_vetor(n); // No FFTPACK4, trabalha-se com valores em double e nao complexos
 	    	f_linha[0] = 6;
 			f_linha[1] = 2;
 			f_linha[2] = 5;
@@ -132,12 +132,12 @@ int main() {
             break;
 
         case 3: // Teste c
-        	n = 512;
-			x = criar_vetor_complexo(2*n);
-			f = criar_vetor_complexo(2*n);
-			f_linha = criar_vetor(2*n); // No FFTPACK4, trabalha-se com valores em double e nao complexos
+        	n = 1024;
+			x = criar_vetor_complexo(n);
+			f = criar_vetor_complexo(n);
+			f_linha = criar_vetor(n); // No FFTPACK4, trabalha-se com valores em double e nao complexos
 			
-			for(int i = 0; i < 2*n; i++) {
+			for(int i = 0; i < n; i++) {
 		        x[i] = (i * M_PI) / 512; 
 
 		        f[i] = 10*sin(x[i]) + 7*cos(30*x[i]) + 11*sin(352*x[i]) - 8*cos(711*x[i]);
@@ -152,12 +152,12 @@ int main() {
 			printf("\n---------------Analise de Fourier----------------\n");
 
 			// Alocacao de vetores
-			x = criar_vetor_complexo(2*n);
-			f = criar_vetor_complexo(2*n);
-			f2 = criar_vetor_complexo(2*n);
+			x = criar_vetor_complexo(n);
+			f = criar_vetor_complexo(n);
+			f2 = criar_vetor_complexo(n);
 			// No FFTPACK4, trabalha-se com valores em double e nao complexos
-			f_linha = criar_vetor(2*n); 
-			f2_linha = criar_vetor(2*n);
+			f_linha = criar_vetor(n); 
+			f2_linha = criar_vetor(n);
 			// Preenchimento dos vetores de acordo com o arquivo
 			sample_rate = ler_arquivo_dat(nome_arquivo, n, x, f, f2, f_linha, f2_linha);
             break;
@@ -177,18 +177,18 @@ int main() {
 		a2 = NULL;
 		b2 = NULL;
 		printf("\nO sinal analisado tem %d amostras. \n", n);	
-		c = criar_vetor_complexo(2*n);
+		c = criar_vetor_complexo(n);
 
 		printf("\n------------- Forma Direta ---------------\n\n");
 		printf("Amostra original do sinal:\n");
-		imprimir_complexo(f, 2*n);
+		imprimir_complexo(f, n);
 
 		printf("Transformada de Fourier - Vetor de coeficientes:\n");
 		tempo[0] = clock();
 		fourier(c, f, x, n);
 		tempo[1] = clock();
 		tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
-		imprimir_complexo(c, 2*n);
+		imprimir_complexo(c, n);
 		printf("\nTempo gasto: %g ms.\n", tempo_execucao);
 
 	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
@@ -196,67 +196,64 @@ int main() {
 	    anti_fourier(c, f, x, n);
 	    tempo[1] = clock();
 	    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
-		imprimir_complexo(f, 2*n);
+		imprimir_complexo(f, n);
 		printf("\nTempo gasto: %g ms.\n", tempo_execucao);
 
 		printf("\n------------- FFT Recursiva ---------------\n\n");
 		printf("Amostra original do sinal:\n");
-	    imprimir_complexo(f, 2*n);
+	    imprimir_complexo(f, n);
 
 		printf("Transformada de Fourier - Vetor de coeficientes:\n");
 		tempo[0] = clock();
-		fftrec(c, f, n, true);  // Transformada direta pela fftrec
+		fftrec(c, f, n/2, true);  // Transformada direta pela fftrec
 		
 
-		// Como indicado no algoritmo, faz-se necessaria a divisao dos coeficientes por 2N
-		for(int i = 0; i < 2*n; i++){
-	        c[i] = c[i]/(2*n);
+		// Como indicado no algoritmo, faz-se necessaria a divisao dos coeficientes por N
+		for(int i = 0; i < n; i++){
+	        c[i] = c[i]/n;
 	    }
 	    tempo[1] = clock();
 	    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
-	    imprimir_complexo(c, 2*n);
+	    imprimir_complexo(c, n);
 	    printf("\nTempo gasto: %g ms.\n", tempo_execucao);
 
 	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
 	    tempo[0] = clock();
-		fftrec(c, f, n, false);  // Anti-transformada pela fftrec
+		fftrec(c, f, n/2, false);  // Anti-transformada pela fftrec
 		tempo[1] = clock();	
 		tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
-	    imprimir_complexo(f, 2*n);
+	    imprimir_complexo(f, n);
 	    printf("\nTempo gasto: %g ms.\n", tempo_execucao);
 
 		printf("\n------------- FFTPACK4 ---------------\n\n");
 	    printf("Amostra original do sinal:\n");
-	    imprimir_complexo(f, 2*n);
+	    imprimir_vetor(f_linha, n);
 		tempo[0] = clock();
 		wsave = criar_vetor(3 * n + 15);
 		ifac = criar_vetor_int(8);
-		a = criar_vetor((n-1)/2);
-		b = criar_vetor((n-1)/2);
+		a = criar_vetor(n/2);
+		b = criar_vetor(n/2);
 
-		n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
 		ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
 		ezfftf(&n, f_linha, &a0, a, b, wsave, ifac);  // transformada direta de fourier
-		n = n/2; // Retorna-se para o valor de n original
 
 		// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 		c[0] = a0;
-		for(int i = 1; i < n; i++) {
+		for(int i = 1; i < (n/2); i++) {
 			c[i] = (a[i-1] - (I * b[i-1]))/2;	
 		}
-		c[n] = a[n-1] + I*b[n-1];
-		for(int i = 1; i < n; i++) {
-			c[2*n-i] = (a[i-1] + (I * b[i-1]))/2;
+		c[n/2] = a[(n/2)-1] + I*b[(n/2)-1];
+		for(int i = 1; i < (n/2); i++) {
+			c[n-i] = (a[i-1] + I * b[i-1])/2;
 		}
 		tempo[1] = clock();
 		tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 		printf("Transformada de Fourier - Vetor de coeficientes:\n");
-	    imprimir_complexo(c, 2*n);
+	    imprimir_complexo(c, n);
 	    printf("\nTempo gasto: %g ms.\n", tempo_execucao);
 
 	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
 	    tempo[0] = clock();
-		n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
 		ezfftb(&n, f_linha, &a0, a, b, wsave, ifac);  // Antitransformada de fourier
 	    tempo[1] = clock();
 	    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
@@ -285,9 +282,9 @@ int main() {
         
     } else { // Para os arquivos de audio
     	printf("\nO sinal analisado tem %d amostras. \n", n);	
-    	c = criar_vetor_complexo(2*n);
+    	c = criar_vetor_complexo(n);
     	if(canais == 2) {
-			c2 = criar_vetor_complexo(2*n);
+			c2 = criar_vetor_complexo(n);
 		} else {
 			//Desaloca-se os ponteiros que nao serao utilizados
 			c2 = NULL;
@@ -337,17 +334,17 @@ int main() {
 				b2 = NULL;
 
 				tempo[0] = clock();
-				fftrec(c, f, n, true);
+				fftrec(c, f, n/2, true);
 				if(canais == 2) {
-					fftrec(c2, f2, n, true);
+					fftrec(c2, f2, n/2, true);
 				}
 				// Como indicado no algoritmo, faz-se necessaria a divisao dos coeficientes por 2N
-				for(int i = 0; i < 2*n; i++){
-			        c[i] = c[i]/(2*n);
+				for(int i = 0; i < n; i++){
+			        c[i] = c[i]/n;
 			    }
 			    if(canais == 2) {
-			    	for(int i = 0; i < 2*n; i++){
-			        	c2[i] = c[i]/(2*n);
+			    	for(int i = 0; i < n; i++){
+			        	c2[i] = c[i]/n;
 			   		}
 			    }
 			    tempo[1] = clock();
@@ -378,36 +375,32 @@ int main() {
 					b2 = NULL;
 				}
 				
-
-				n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
 				ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
 				ezfftf(&n, f_linha, &a0, a, b, wsave, ifac);  // transformada
-				n = n/2; // Retorna-se para o valor de n original
 			
 				// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 				c[0] = a0;
-				for(int i = 1; i < n; i++) {
+				for(int i = 1; i < (n/2); i++) {
 					c[i] = (a[i-1] - (I * b[i-1]))/2;	
 				}
-				c[n] = a[n-1] + I*b[n-1];
-				for(int i = 1; i < n; i++) {
-					c[2*n-i] = (a[i-1] + (I * b[i-1]))/2;
+				c[n/2] = a[(n/2)-1] + I*b[(n/2)-1];
+				for(int i = 1; i < (n/2); i++) {
+					c[n-i] = (a[i-1] + I * b[i-1])/2;
 				}
 
 				if(canais == 2) {
-					n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
+			
 					ezffti(&n, wsave2, ifac2);  // inicializacao da fftpack4
 					ezfftf(&n, f2_linha, &a02, a2, b2, wsave2, ifac2);  // transformada direta de fourier
-					n = n/2; // Retorna-se para o valor de n original
 
 					// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 					c2[0] = a02;
-					for(int i = 1; i < n; i++) {
+					for(int i = 1; i < (n/2); i++) {
 						c2[i] = (a2[i-1] - (I * b2[i-1]))/2;	
 					}
-					c2[n] = a2[n-1] + I*b2[n-1];
-					for(int i = 1; i < n; i++) {
-						c2[2*n-i] = (a2[i-1] + (I * b2[i-1]))/2;
+					c2[n/2] = a2[(n/2)-1] + I*b2[(n/2)-1];
+					for(int i = 1; i < (n/2); i++) {
+						c2[n-i] = (a2[i-1] + I * b2[i-1])/2;
 					}
 				}
 				tempo[1] = clock();
@@ -514,12 +507,12 @@ int main() {
 
 			case 2:
 				tempo[0] = clock();
-				fftrec(c, f, n, false);
+				fftrec(c, f, n/2, false);
 				//Desalocando memoria
 			    free(c);
 			    c = NULL;
 				if(canais == 2){
-			    	fftrec(c2, f2, n, false);
+			    	fftrec(c2, f2, n/2, false);
 			    	//Desalocando memoria
 			    	free(c2);
 			    	c2 = NULL;
@@ -549,7 +542,6 @@ int main() {
 			    	c2 = NULL;
 			    }
 
-				n = 2*n; // Dobra-se n para o uso nas funções do fftpack4
 				ezfftb(&n, f_linha, &a0, a, b, wsave, ifac); 
 				//Desalocando memoria
 				free(a);
@@ -573,7 +565,6 @@ int main() {
 					wsave2 = NULL;
 					ifac2 = NULL;  
 			    }	
-			    n = n/2; // Retorna-se para o valor de n original
 			    tempo[1] = clock();
 			    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 			    printf("\nAntitransformada de Fourier (FFTPACK4) aplicada em %g ms.\n\n", tempo_execucao);
@@ -679,7 +670,7 @@ void imprimir_complexo(double complex *c, int N) {
 }
 
 int tamanho_arquivo(char *nome_arquivo, int *canais) {
-	int n = -1;
+	int n = 0;
 	int var_temp1;
 	double var_temp2, var_temp3, var_temp4;
 	char linha[512];
@@ -720,6 +711,7 @@ int tamanho_arquivo(char *nome_arquivo, int *canais) {
     }
 
     fclose(arquivo);
+    n-=1;
     return n;
 
 }
@@ -833,12 +825,12 @@ void fourier(double complex *c, double complex *f, double complex *x, int n){
 
     double complex somatorio;
     
-    for (int k = 0; k < 2*n; k++){
+    for (int k = 0; k < n; k++){
         somatorio = 0;
-        for (int j = 0; j < 2*n; j++){
+        for (int j = 0; j < n; j++){
             somatorio += f[j]* cexp(-I * k * x[j]);
         }
-        c[k] = somatorio / ((double)2 * n);
+        c[k] = somatorio / n;
     }
 }
 
@@ -849,9 +841,9 @@ void anti_fourier(double complex *c, double complex *f, double complex *x, int n
 
     double complex somatorio;
 
-    for (int j = 0; j < 2*n; j++){
+    for (int j = 0; j < n; j++){
         somatorio = 0;
-        for (int k = 0; k < 2*n; k++){
+        for (int k = 0; k < n; k++){
             somatorio += c[k] * cexp(I * k * x[j]);
         }
         f[j] = somatorio;
@@ -916,7 +908,7 @@ void comprimir_sinal(double complex *c, double taxa_minima, int N) {
 void passa_altas(double complex *c, int N, int freq_corte ) {
     /* Filtro que zera todas as frequencias abaixo da frequencia de corte */
 
-    for (int k = freq_corte-1; k > 0; k--) {
+    for (int k = freq_corte-1; k >= 0; k--) {
         c[k] = 0;
     } 
 }
