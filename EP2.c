@@ -229,6 +229,23 @@ int main() {
 		ezfftb(&n, f_linha, &a0, a, b, wsave, ifac);  // Antitransformada de fourier
 	    imprimir_vetor(f_linha, n);
 	    n = n/2; // Retorna-se para o valor de n original
+
+	    // Desalocacao de memoria
+	    free(ifac);
+		free(wsave);
+		free(a);
+		free(b);
+		free(ifac2);
+		free(wsave2);
+		free(a2);
+		free(b2);
+		free(c);
+		free(c2);
+		free(x);
+		free(f);
+		free(f2);
+		free(f_linha);
+		free(f_linha2);
 	    return 0;
 
         
