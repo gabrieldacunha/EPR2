@@ -21,6 +21,7 @@ int* criar_vetor_int(int N);
 double complex* criar_vetor_complexo(int N);
 void imprimir_vetor(double* vetor, int N);
 void imprimir_complexo(double complex *c, int N);
+void imprimir_complexo_R(double complex *c, int N);
 
 /* >>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<< */
 int tamanho_arquivo(char *nome_arquivo, int *canais);
@@ -43,6 +44,7 @@ int main() {
 	double complex *c; // Vetor de coeficientes
 	double complex *x; // Vetor de amostras 
 	double complex *f; // Vetor de valores da função em cada amostra
+	double complex *f_rec; // Vetor de valores da função reconstituida pela antitransformada
 	int tipo_problema, tipo_transformada;
 	bool direta; // Usado na fftrec
 	clock_t tempo[2]; // Usado para medir o tempo de execucao
@@ -53,6 +55,7 @@ int main() {
 	char nome_arquivo[128];
 	double complex *c2; // Vetor de coeficientes para o segundo canal
     double complex *f2; // Vetor de valores da função para o segundo canal
+    double complex *f2_rec; // Vetor de valores da função reconstituida pela antitransformada
     int canais, sample_rate; // Parametros fornecidos pelo arquivo
     int K, K1, K2; // Parametros de corte utilizados nos filtros
     int S; // Parametro de compressao
@@ -146,6 +149,9 @@ int main() {
             break;
 
         case 4: // Arquivos de audio
+        	//Destroi os ponteiros que nao serao utilizados
+        	f_rec = NULL;
+        	f2_rec = NULL;
 		    printf("Digite o nome do arquivo a ser analizado (com a terminacao .dat): ");
 		    scanf("%s", nome_arquivo);
 			n = tamanho_arquivo(nome_arquivo, &canais); // Define o numero de amostras com base no arquivo
@@ -168,7 +174,7 @@ int main() {
     }
 
 	if(tipo_problema != 4) { // Testes a, b, c:
-		//Desaloca-se os ponteiros que nao serao utilizados
+		//Destroi os ponteiros que nao serao utilizados
 		c2 = NULL;
 		f2 = NULL;
 		f2_linha = NULL;
@@ -179,9 +185,10 @@ int main() {
 		printf("\nO sinal analisado tem %d amostras. \n", n);	
 		c = criar_vetor_complexo(n);
 
+
 		printf("\n------------- Forma Direta ---------------\n\n");
 		printf("Amostra original do sinal:\n");
-		imprimir_complexo(f, n);
+		imprimir_complexo_R(f, n);
 
 		printf("Transformada de Fourier - Vetor de coeficientes:\n");
 		tempo[0] = clock();
@@ -189,25 +196,30 @@ int main() {
 		tempo[1] = clock();
 		tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 		imprimir_complexo(c, n);
-		printf("\nTempo gasto: %g ms.\n", tempo_execucao);
+		printf("Tempo gasto: %g ms.\n\n", tempo_execucao);
 
+	    f_rec = criar_vetor_complexo(n); // Inicializa vetor para o sinal reconstituido
 	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
 	    tempo[0] = clock();
-	    anti_fourier(c, f, x, n);
+	    anti_fourier(c, f_rec, x, n);
 	    tempo[1] = clock();
 	    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
-		imprimir_complexo(f, n);
-		printf("\nTempo gasto: %g ms.\n", tempo_execucao);
+		imprimir_complexo_R(f_rec, n);
+
+		// Libera a memoria para o uso na FFT Recursiva
+		free(f_rec);
+		free(c);
+		printf("Tempo gasto: %g ms.\n", tempo_execucao);
 
 		printf("\n------------- FFT Recursiva ---------------\n\n");
 		printf("Amostra original do sinal:\n");
-	    imprimir_complexo(f, n);
+	    imprimir_complexo_R(f, n);
 
 		printf("Transformada de Fourier - Vetor de coeficientes:\n");
+		c = criar_vetor_complexo(n); //Reinicializa o vetor de coeficientes
 		tempo[0] = clock();
 		fftrec(c, f, n/2, true);  // Transformada direta pela fftrec
 		
-
 		// Como indicado no algoritmo, faz-se necessaria a divisao dos coeficientes por N
 		for(int i = 0; i < n; i++){
 	        c[i] = c[i]/n;
@@ -215,16 +227,21 @@ int main() {
 	    tempo[1] = clock();
 	    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 	    imprimir_complexo(c, n);
-	    printf("\nTempo gasto: %g ms.\n", tempo_execucao);
-
+	    printf("Tempo gasto: %g ms.\n\n", tempo_execucao);
+	    
 	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
 	    tempo[0] = clock();
-		fftrec(c, f, n/2, false);  // Anti-transformada pela fftrec
+	    f_rec = criar_vetor_complexo(n); // Reinicializa vetor para o sinal reconstituido
+		fftrec(c, f_rec, n/2, false);  // Anti-transformada pela fftrec
 		tempo[1] = clock();	
 		tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
-	    imprimir_complexo(f, n);
-	    printf("\nTempo gasto: %g ms.\n", tempo_execucao);
-
+	    imprimir_complexo_R(f_rec, n);
+	    free(c); // Desaloca para o uso no FFTPACK4
+	    // Nao serao mais utilizados
+	    free(f_rec);
+	    free(f);
+	    printf("Tempo gasto: %g ms.\n", tempo_execucao);
+	  
 		printf("\n------------- FFTPACK4 ---------------\n\n");
 	    printf("Amostra original do sinal:\n");
 	    imprimir_vetor(f_linha, n);
@@ -238,6 +255,7 @@ int main() {
 		ezfftf(&n, f_linha, &a0, a, b, wsave, ifac);  // transformada direta de fourier
 
 		// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
+		c = criar_vetor_complexo(n); //Reinicializa o vetor de coeficientes
 		c[0] = a0;
 		for(int i = 1; i < (n/2); i++) {
 			c[i] = (a[i-1] - (I * b[i-1]))/2;	
@@ -250,15 +268,23 @@ int main() {
 		tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 		printf("Transformada de Fourier - Vetor de coeficientes:\n");
 	    imprimir_complexo(c, n);
-	    printf("\nTempo gasto: %g ms.\n", tempo_execucao);
+	    printf("Tempo gasto: %g ms.\n\n", tempo_execucao);
 
+	    free(f_linha); // Limpando o vetor para usar novamente na antitransformada
+	    f_linha = criar_vetor(n); // Reinicializando o vetor
 	    printf("Antitransformada de Fourier - Sinal recuperado:\n");
 	    tempo[0] = clock();
+	    // Conversao de valores ck para ak, bk
+	    a0 = c[0];
+		for(int k = 1; k < (n/2); k++) {
+			a[k-1] = c[k] + c[n-k];
+			b[k-1] = I*(c[k] - c[n-k]);
+		}
 		ezfftb(&n, f_linha, &a0, a, b, wsave, ifac);  // Antitransformada de fourier
 	    tempo[1] = clock();
 	    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 	    imprimir_vetor(f_linha, n);
-	    printf("\nTempo gasto: %g ms.\n", tempo_execucao);
+	    printf("Tempo gasto: %g ms.\n", tempo_execucao);
 
 	    // Desalocacao de memoria
 	    free(ifac);
@@ -267,7 +293,6 @@ int main() {
 		free(b);
 		free(c);
 		free(x);
-		free(f);
 		free(f_linha);
 		ifac = NULL;
 		wsave = NULL;
@@ -277,6 +302,7 @@ int main() {
 		x = NULL;
 		f = NULL;
 		f_linha = NULL;
+		f_rec = NULL;
 	    return 0;
 
         
@@ -302,7 +328,11 @@ int main() {
 
 		switch(tipo_transformada) {
 			case 1:
-				//Desaloca-se os ponteiros que nao serao utilizados
+				//Desaloca os vetores que nao serao utilizados
+				free(f_linha);
+				free(f2_linha);
+
+				//Destroi os ponteiros que nao serao utilizados
 				ifac = NULL;
 				wsave = NULL;
 				a = NULL;
@@ -314,8 +344,10 @@ int main() {
 
 				tempo[0] = clock();
 				fourier(c, f, x, n);
+				free(f); // Limpa o vetor para usar novamente na antitransformada
 				if(canais == 2) {
 					fourier(c2, f2, x, n);
+					free(f2); // Limpa o vetor para usar novamente na antitransformada
 				}
 				tempo[1] = clock();
 				tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
@@ -323,7 +355,11 @@ int main() {
 				break;
 
 			case 2:
-				//Desaloca-se os ponteiros que nao serao utilizados
+				//Desaloca os vetores que nao serao utilizados
+				free(f_linha);
+				free(f2_linha);
+
+				//Destroi os ponteiros que nao serao utilizados
 				ifac = NULL;
 				wsave = NULL;
 				a = NULL;
@@ -335,8 +371,10 @@ int main() {
 
 				tempo[0] = clock();
 				fftrec(c, f, n/2, true);
+				free(f); // Limpa o vetor para usar novamente na antitransformada
 				if(canais == 2) {
 					fftrec(c2, f2, n/2, true);
+					free(f2); // Limpa o vetor para usar novamente na antitransformada
 				}
 				// Como indicado no algoritmo, faz-se necessaria a divisao dos coeficientes por 2N
 				for(int i = 0; i < n; i++){
@@ -377,7 +415,8 @@ int main() {
 				
 				ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
 				ezfftf(&n, f_linha, &a0, a, b, wsave, ifac);  // transformada
-			
+				free(f_linha); // Limpa o vetor para usar novamente na antitransformada
+				
 				// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 				c[0] = a0;
 				for(int i = 1; i < (n/2); i++) {
@@ -392,7 +431,7 @@ int main() {
 			
 					ezffti(&n, wsave2, ifac2);  // inicializacao da fftpack4
 					ezfftf(&n, f2_linha, &a02, a2, b2, wsave2, ifac2);  // transformada direta de fourier
-
+					free(f2_linha); // Limpa o vetor para usar novamente na antitransformada
 					// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 					c2[0] = a02;
 					for(int i = 1; i < (n/2); i++) {
@@ -490,11 +529,13 @@ int main() {
         switch(tipo_transformada) {
 			case 1:
 				tempo[0] = clock();
+				f = criar_vetor_complexo(n); // Reinicializa o vetor para obter o sinal reconstituido
 			    anti_fourier(c, f, x, n);
 			    //Desalocando memoria
 			    free(c);
 			    c = NULL;
 			    if(canais == 2){
+			    	f2 = criar_vetor_complexo(n); // Reinicializa o vetor para obter o sinal reconstituido
 			    	anti_fourier(c2, f2, x, n);
 			    	//Desalocando memoria
 			    	free(c2);
@@ -507,11 +548,13 @@ int main() {
 
 			case 2:
 				tempo[0] = clock();
+				f = criar_vetor_complexo(n); // Reinicializa o vetor para obter o sinal reconstituido
 				fftrec(c, f, n/2, false);
 				//Desalocando memoria
 			    free(c);
 			    c = NULL;
 				if(canais == 2){
+					f2 = criar_vetor_complexo(n); // Reinicializa o vetor para obter o sinal reconstituido
 			    	fftrec(c2, f2, n/2, false);
 			    	//Desalocando memoria
 			    	free(c2);
@@ -524,15 +567,13 @@ int main() {
 
 			case 3:
 				tempo[0] = clock();
-				//Conversao do vetor de coeficientes c para a0, a b:
-				// a0 = c[0];
-				// for(int k = 1; k < n; k++) {
-				// 	a[k-1] = c[k] + c[2*n-i];
-				// 	b[k-1] = 
-				// }
-
-
-
+				f_linha = criar_vetor(n); // Reinicializa o vetor para obter o sinal reconstituido
+				// Conversao do vetor de coeficientes c para a0, a b:
+				a0 = c[0];
+				for(int k = 1; k < (n/2); k++) {
+					a[k-1] = c[k] + c[n-k];
+					b[k-1] = I*(c[k] - c[n-k]);
+				}
 
 				//Desalocando memoria
 			    free(c);
@@ -554,6 +595,7 @@ int main() {
 				ifac = NULL;
 
 			    if(canais == 2){
+			    	f2_linha = criar_vetor(n); // Reinicializa o vetor para obter o sinal reconstituido
 			    	ezfftb(&n, f2_linha, &a02, a2, b2, wsave2, ifac2);
 			    	//Desalocando memoria
 					free(a2);
@@ -646,17 +688,31 @@ void imprimir_vetor(double* vetor, int N) {
 
     for(int i = 0; i < N; i++) {
         if(vetor[i] >= 0) {
-            printf("|  %.3e |\n", vetor[i]);
+            printf("| %.2e |\n", vetor[i]);
         }
         else {
-            printf("| %.3e |\n", vetor[i]);
+            printf("|%.2e |\n", vetor[i]);
         }
     }
     printf("\n");
 }
 
-void imprimir_complexo(double complex *c, int N) { 
+void imprimir_complexo_R(double complex *c, int N) { 
 	/* Impressao de vetor de complexos */
+
+    for(int i = 0; i < N; i++) {
+    	if (creal(c[i]) > 0) {
+    		printf("| %.2e |\n", creal(c[i]));
+    	} 
+    	else {
+    		printf("|%.2e |\n", creal(c[i]));
+    	}  
+    }
+    printf("\n");
+}
+
+void imprimir_complexo(double complex *c, int N) { 
+	 // Impressao de vetor de complexos 
 
     for(int i = 0; i < N; i++) {
     	if (creal(c[i]) > 0) {
@@ -862,31 +918,48 @@ void fftrec(double complex *c, double complex *f, int n, bool dir) {
 	fe = criar_vetor_complexo(n);
 	fo = criar_vetor_complexo(n);
 
-	if(n == 1) {
-		c[0] = f[0] + f[1];
-		c[1] = f[0] - f[1];
-	}
-	else {
-		for(int j = 0; j < n; j++) {
-			fe[j] = f[2 * j];
-			fo[j] = f[2 * j + 1];
+	if (dir) {
+		if(n == 1) {
+			c[0] = f[0] + f[1];
+			c[1] = f[0] - f[1];
 		}
-
-		fftrec(even, fe, n/2, dir);
-		fftrec(odd, fo, n/2, dir);
-
-		for(int j = 0; j < n; j++) {
-			if(dir) {
-				eij = cexp(- I * j * M_PI / n);  // https://stackoverflow.com/questions/2834865/computing-e-j-in-c
+		else {
+			for(int j = 0; j < n; j++) {
+				fe[j] = f[2 * j];
+				fo[j] = f[2 * j + 1];
 			}
-			else {
+
+			fftrec(even, fe, n/2, dir);
+			fftrec(odd, fo, n/2, dir);
+
+			for(int j = 0; j < n; j++) {
+				eij = cexp(- I * j * M_PI / n);
+				c[j] = even[j] + eij * odd[j];
+				c[j+n] = even[j] - eij * odd[j];
+			}
+		}
+	} else {
+		if(n == 1) {
+			f[0] = c[0] + c[1];
+			f[1] = c[0] - c[1];
+		}
+		else {
+			for(int j = 0; j < n; j++) {
+				fe[j] = c[2 * j];
+				fo[j] = c[2 * j + 1];
+			}
+
+			fftrec(fe, even, n/2, dir);
+			fftrec(fo, odd, n/2, dir);
+
+			for(int j = 0; j < n; j++) {
 				eij = cexp(I * j * M_PI / n);
+				f[j] = even[j] + eij * odd[j];
+				f[j+n] = even[j] - eij * odd[j];
 			}
-
-			c[j] = even[j] + eij * odd[j];
-			c[j+n] = even[j] - eij * odd[j];
 		}
 	}
+	
 }
 
 
