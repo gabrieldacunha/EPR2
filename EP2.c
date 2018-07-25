@@ -58,7 +58,7 @@ int main() {
     double complex *f2_rec; // Vetor de valores da função reconstituida pela antitransformada
     int canais, sample_rate; // Parametros fornecidos pelo arquivo
     int K, K1, K2; // Parametros de corte utilizados nos filtros
-    int S; // Parametro de compressao
+    double S; // Parametro de compressao
     int tratar_dados; // Para o caso do numero de amostras nao ser uma potencia de 2
     int delta; // Parametro de tratamento de dados
 
@@ -543,7 +543,7 @@ int main() {
 	    scanf("%d", &escolha);
 	    if (escolha == 1) {
 	    	printf("Digite o parametro de compressao S: ");
-	    	scanf("%d", &S);
+	    	scanf("%lf", &S);
 	    	comprimir_sinal(c, S, n);
 	    	if(canais == 2){
 	    		comprimir_sinal(c2, S, n);
