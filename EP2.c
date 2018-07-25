@@ -24,10 +24,10 @@ void imprimir_complexo(double complex *c, int N);
 void imprimir_complexo_R(double complex *c, int N);
 
 /* >>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<< */
-int tamanho_arquivo(char *nome_arquivo, int *canais);
-int ler_arquivo_dat(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f2_linha);
-void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double complex *f, double complex *f2);
-void escrever_arquivo_dat_linha(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double *f_linha, double *f2_linha);
+int contar_amostras(char *nome_arquivo, int *sample_rate, int *canais, int *tratar_dados, int *delta);
+void ler_arquivo(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f2_linha, int tratar_dados, int delta);
+void escrever_arquivo(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double complex *f, double complex *f2);
+void escrever_arquivo_linha(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double *f_linha, double *f2_linha);
 void fourier(double complex *c, double complex *f, double complex *x, int n);
 void anti_fourier(double complex *c, double complex *f, double complex *x, int n);
 void fftrec(double complex *c, double complex *f, int n, bool dir);
@@ -59,6 +59,8 @@ int main() {
     int canais, sample_rate; // Parametros fornecidos pelo arquivo
     int K, K1, K2; // Parametros de corte utilizados nos filtros
     int S; // Parametro de compressao
+    int tratar_dados; // Para o caso do numero de amostras nao ser uma potencia de 2
+    int delta; // Parametro de tratamento de dados
 
 	// Variaveis especificas do fftpack4
 	double *a, *b, *a2, *b2;
@@ -154,8 +156,40 @@ int main() {
         	f2_rec = NULL;
 		    printf("Digite o nome do arquivo a ser analizado (com a terminacao .dat): ");
 		    scanf("%s", nome_arquivo);
-			n = tamanho_arquivo(nome_arquivo, &canais); // Define o numero de amostras com base no arquivo
-			printf("\n---------------Analise de Fourier----------------\n");
+		    n = contar_amostras(nome_arquivo, &sample_rate, &canais, &tratar_dados, &delta); // Define o numero de amostras, canais e o tratamento dos dados
+
+		    switch(tratar_dados){
+				case 0:
+					printf("\nO sinal analisado tem %d amostras, que corresponde a uma potencia de 2.\n", n);
+					break;
+				case 1:
+					printf("\nO sinal analisado tem %d amostras, que nao corresponde a uma potencia de 2, tendo %d amostras a mais da potencia mais proxima.\n", n, delta);
+					break;
+				case 2:
+				printf("\nO sinal analisado tem %d amostras, que nao corresponde a uma potencia de 2, tendo %d amostras a menos da proxima potencia.\n", n, delta);
+					break;
+				default:
+					break;
+			}
+
+		    printf("\n---------------Analise de Fourier----------------\n");
+			printf("1 - Forma direta\n");
+			printf("2 - FFT Recursiva\n");
+			printf("3 - FFTPACK4\n");
+			printf("Selecione o tipo de transformada desejada: ");
+			scanf("%d", &tipo_transformada);
+
+			// Tratamento de dados
+			if(tipo_transformada != 3 && tratar_dados == 1){
+				n -= delta; // As amostras em excesso serao cortadas
+			} else if(tipo_transformada != 3 && tratar_dados == 2) {
+				n += delta; // As amostras faltantes serao preenchidas com a media das demais
+			}
+
+			// Caso n nao seja uma potencia de 2, mas o metodo seja fftpack4, nao ha tratamento de dados
+			if(tratar_dados != 0 && tipo_transformada == 3){
+				tratar_dados = 0;
+			}
 
 			// Alocacao de vetores
 			x = criar_vetor_complexo(n);
@@ -164,12 +198,23 @@ int main() {
 			// No FFTPACK4, trabalha-se com valores em double e nao complexos
 			f_linha = criar_vetor(n); 
 			f2_linha = criar_vetor(n);
+	    	c = criar_vetor_complexo(n);
+	    	if(canais == 2) {
+				c2 = criar_vetor_complexo(n);
+			} else {
+				//Desaloca-se os ponteiros que nao serao utilizados
+				c2 = NULL;
+				f2 = NULL;
+			}
 			// Preenchimento dos vetores de acordo com o arquivo
-			sample_rate = ler_arquivo_dat(nome_arquivo, n, x, f, f2, f_linha, f2_linha);
+			ler_arquivo(nome_arquivo, n, x, f, f2, f_linha, f2_linha, tratar_dados, delta);
+			
+			printf("\nO sinal analisado tem %d amostras. \n", n);	
             break;
 
         default:
             printf("Opcao invalida!\n");
+            exit(EXIT_FAILURE);
             break;
     }
 
@@ -307,23 +352,7 @@ int main() {
 
         
     } else { // Para os arquivos de audio
-    	printf("\nO sinal analisado tem %d amostras. \n", n);	
-    	c = criar_vetor_complexo(n);
-    	if(canais == 2) {
-			c2 = criar_vetor_complexo(n);
-		} else {
-			//Desaloca-se os ponteiros que nao serao utilizados
-			c2 = NULL;
-			f2 = NULL;
-		}
     	
-		printf("1 - Forma direta\n");
-		printf("2 - FFT Recursiva\n");
-		printf("3 - FFTPACK4\n");
-		printf("Selecione o tipo de transformada desejada: ");
-		scanf("%d", &tipo_transformada);
-
-
 		// Transformada de Fourier
 
 		switch(tipo_transformada) {
@@ -448,6 +477,7 @@ int main() {
 				break;
 			default:
 				printf("Opcao invalida!\n");
+				exit(EXIT_FAILURE);
             	break;
         }
 
@@ -619,36 +649,28 @@ int main() {
 
 
         //Gravando arquivo
-
-		printf("Deseja gravar o resultado em um arquivo?\n");
-	    printf("1 - Sim\n");
-	    printf("2 - Nao\n");
-	    printf("Resposta: ");
-	    scanf("%d", &escolha);
-
-	    if(escolha == 1) {
-	    	printf("\nDigite o nome do arquivo a ser escrito (com a terminacao .dat): ");
-	    	scanf("%s", nome_arquivo);
-	    	// Escreve o resultado da analise no arquivo
-	    	if(tipo_transformada != 3) {
-	    		escrever_arquivo_dat(nome_arquivo, sample_rate, canais, n, x, f, f2);
-	    		// Desalocacao de memoria
-	    		free(f);
-	    		free(x);
-	    		if(canais == 2) {
-	    			free(f2);
-	    		}
-	    	}
-	    	else {
-	    		escrever_arquivo_dat_linha(nome_arquivo, sample_rate, canais, n, x, f_linha, f2_linha);
-	    		free(f_linha);
-	    		free(x);
-	    		if(canais == 2) {
-	    			free(f2_linha);
-	    		}
-	    	}
-	    	printf("\nArquivo gravado com sucesso!\n");
-	    } 
+    	printf("\nDigite o nome do arquivo para gravar o resultado (com a terminacao .dat): ");
+    	scanf("%s", nome_arquivo);
+    	// Escreve o resultado da analise no arquivo
+    	if(tipo_transformada != 3) {
+    		escrever_arquivo(nome_arquivo, sample_rate, canais, n, x, f, f2);
+    		// Desalocacao de memoria
+    		free(f);
+    		free(x);
+    		if(canais == 2) {
+    			free(f2);
+    		}
+    	}
+    	else {
+    		escrever_arquivo_linha(nome_arquivo, sample_rate, canais, n, x, f_linha, f2_linha);
+    		free(f_linha);
+    		free(x);
+    		if(canais == 2) {
+    			free(f2_linha);
+    		}
+    	}
+    	printf("\nArquivo gravado com sucesso!\n");
+	    
     }
 
     // Desalocacao de ponteiros
@@ -729,11 +751,12 @@ void imprimir_complexo(double complex *c, int N) {
     printf("\n");
 }
 
-int tamanho_arquivo(char *nome_arquivo, int *canais) {
+int contar_amostras(char *nome_arquivo, int *sample_rate, int *canais, int *tratar_dados, int *delta) {
 	int n = 0;
 	int var_temp1;
 	double var_temp2, var_temp3, var_temp4;
 	char linha[512];
+	int i, potencia, delta_prev, delta_next;
 
 	FILE *arquivo = fopen(nome_arquivo, "r");
 
@@ -744,25 +767,21 @@ int tamanho_arquivo(char *nome_arquivo, int *canais) {
 
     // Passando pelas duas primeiras linhas
     fscanf(arquivo, "%*[^0-9]%d", &var_temp1);
+    *sample_rate = var_temp1;
     fscanf(arquivo, "%*[^0-9]%d", &var_temp1);
-
-    *canais = var_temp1; // retornando numero de canais por meio de um ponteiro
+    *canais = var_temp1; 
 
     if(*canais == 1) {
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { // pega uma linha de até 512 caracteres. Null quando acabar as linhas 
-
 	        sscanf(linha, "%lf %lf", &var_temp2, &var_temp3);
-	        n++;  // contando o numero de dados
-	        
+	        n++;  // contando o numero de dados 
         }
     }
 
     else if(*canais == 2) {
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { // pega uma linha de até 512 caracteres. Null quando acabar as linhas
-
 	        sscanf(linha, "%lf %lf %lf", &var_temp2, &var_temp3, &var_temp4);
 	        n++;
-	       
 	    }
     }
 
@@ -772,15 +791,38 @@ int tamanho_arquivo(char *nome_arquivo, int *canais) {
 
     fclose(arquivo);
     n-=1;
-    return n;
 
+    //Verifica se o numero de amostras e uma potencia de 2
+    i = 0;
+    potencia = pow(2, i);
+    while (potencia < n){ // Itera a potencia de 2 ate que seja maior ou igual a n
+    	i++;
+    	potencia = pow(2, i);
+    }
+
+    if(potencia != n) {
+    	delta_next = potencia - n; // Distancia de n ate a proxima potencia de 2
+    	delta_prev = n - pow(2, i-1); // Distancia de n ate a potencia de 2 anterior
+    	if (delta_prev < 50) { // Valor arbitrado para o numero maximo de amostras que podem ser descartadas
+    		*tratar_dados = 1; // Descartar as amostras que estao sobrando
+    		*delta = delta_prev;
+    	} else {
+    		*tratar_dados = 2; // Completar as amostras com a media dos valores ate n = proxima potencia de 2
+    		*delta = delta_next;
+    	}
+    } else {
+    	*tratar_dados = 0; //Nenhum tratamento de dado necessario, pois n = potencia de 2
+    }
+	
+    return n;
 }
 
 
-int ler_arquivo_dat(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f2_linha) {
+void ler_arquivo(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f2_linha, int tratar_dados, int delta) {
 	int sample_rate, channels;
-	double var_x, var_f, var_f2;
+	double soma, soma2, media, media2, delta_x;
 	char linha[512];
+	int i;
 
 	FILE *arquivo = fopen(nome_arquivo, "r");
 
@@ -793,36 +835,89 @@ int ler_arquivo_dat(char *nome_arquivo, int n, double complex *x, double complex
     fscanf(arquivo, "%*[^0-9]%d", &sample_rate);  // Sample Rate
     fscanf(arquivo, "%*[^0-9]%d", &channels);  // Channels
 
-    /* leitura de dados do arquivo */
-    if(channels == 1) {
+	if(tratar_dados == 2) { // Completa-se o vetor com a media das amostras
+		 
+		if(channels == 1) {
+			soma = 0;
+	    	for (i = 0; i < (n-delta); i++) {
+		        fscanf(arquivo, "%lf", &x[i]);
+		        fscanf(arquivo, "%lf", &f[i]);
+		        f_linha[i] = f[i]; // amplitude do sinal - para fftpack4
+		        soma += f[i];
+	    	}
+	    	media = soma/(n-delta); // Media dos valores das amostras;
+	    	delta_x = x[i] - x[i-1]; // Armazena a distancia entre duas amostras
 
-    	for (int i = 0; i < n; i++) {
-	        fscanf(arquivo, "%lf", &x[i]);
-	        fscanf(arquivo, "%lf", &f[i]);
-	        f_linha[i] = f[i]; // amplitude do sinal - para fftpack4
-    	}
-    }
+	    	for (i = (n-delta); i < n; i++) {
+	    		x[i] = x[i-1] + delta_x; // Preenche o vetor de amostras com o passo definido por delta_x
+	    		f[i] = media;
+	    		f_linha[i] = media;
+	    	}
+	    }
 
-    else if(channels == 2) {
-    	for (int i = 0; i < n; i++) {
-	        fscanf(arquivo, "%lf", &x[i]);
-	        fscanf(arquivo, "%lf", &f[i]);
-	        fscanf(arquivo, "%lf", &f2[i]);
-	        f_linha[i] = f[i]; // amplitude do sinal - para fftpack4
-	        f2_linha[i] = f2[i]; // amplitude do sinal - para fftpack4
-    	}
-    }
+	    else if(channels == 2) {
+	    	soma = 0;
+	    	soma2 = 0;
+	    	for (i = 0; i < (n-delta); i++) {
+		        fscanf(arquivo, "%lf", &x[i]);
+		        fscanf(arquivo, "%lf", &f[i]);
+		        fscanf(arquivo, "%lf", &f2[i]);
+		        f_linha[i] = f[i]; // amplitude do sinal - para fftpack4
+		        f2_linha[i] = f2[i]; // amplitude do sinal - para fftpack4
+		        soma += f[i];
+		        soma2 += f2[i];
+	    	}
 
-    else {
-        printf("Numero de canais nao suportado para analise\n");
-    }
+	    	media = soma/(n-delta); // Media dos valores das amostras;
+	    	media2 = soma2/(n-delta); // Media dos valores das amostras para o canal 2;
+	    	delta_x = x[i] - x[i-1]; // Armazena a distancia entre duas amostras
+
+	    	for (i = (n-delta); i < n; i++) {
+	    		x[i] = x[i-1] + delta_x; // Preenche o vetor de amostras com o passo definido por delta_x
+	    		f[i] = media;
+	    		f_linha[i] = media;
+	    		f2[i] = media2;
+	    		f2_linha[i] = media2;
+	    	}
+	    }
+
+	    else {
+	        printf("Numero de canais nao suportado para analise\n");
+	        exit(EXIT_FAILURE);
+	    }
+
+	} else { // Sem tratamento de dados
+		
+	    if(channels == 1) {
+
+	    	for (i = 0; i < n; i++) {
+		        fscanf(arquivo, "%lf", &x[i]);
+		        fscanf(arquivo, "%lf", &f[i]);
+		        f_linha[i] = f[i]; // amplitude do sinal - para fftpack4
+	    	}
+	    }
+
+	    else if(channels == 2) {
+	    	for (i = 0; i < n; i++) {
+		        fscanf(arquivo, "%lf", &x[i]);
+		        fscanf(arquivo, "%lf", &f[i]);
+		        fscanf(arquivo, "%lf", &f2[i]);
+		        f_linha[i] = f[i]; // amplitude do sinal - para fftpack4
+		        f2_linha[i] = f2[i]; // amplitude do sinal - para fftpack4
+	    	}
+	    }
+
+	    else {
+	        printf("Numero de canais nao suportado para analise\n");
+	        exit(EXIT_FAILURE);
+	    }
+	}
 
     fclose(arquivo);
-    return sample_rate;
 }
 
 
-void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double complex *f, double complex *f2) {
+void escrever_arquivo(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double complex *f, double complex *f2) {
 	int i;
 	FILE *arquivo = fopen(nome_arquivo, "w");
 
@@ -849,7 +944,7 @@ void escrever_arquivo_dat(char *nome_arquivo, int sample_rate, int canais, int n
 	fclose(arquivo);
 }
 
-void escrever_arquivo_dat_linha(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double *f_linha, double *f2_linha) {
+void escrever_arquivo_linha(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double *f_linha, double *f2_linha) {
 	int i;
 	FILE *arquivo = fopen(nome_arquivo, "w");
 
