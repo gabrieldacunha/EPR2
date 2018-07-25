@@ -578,10 +578,6 @@ int main() {
 				//Desalocando memoria
 			    free(c);
 			    c = NULL;
-				if(canais == 2) {
-			    	free(c2);
-			    	c2 = NULL;
-			    }
 
 				ezfftb(&n, f_linha, &a0, a, b, wsave, ifac); 
 				//Desalocando memoria
@@ -596,12 +592,20 @@ int main() {
 
 			    if(canais == 2){
 			    	f2_linha = criar_vetor(n); // Reinicializa o vetor para obter o sinal reconstituido
+			    	// Conversao do vetor de coeficientes c para a0, a b:
+					a02 = c2[0];
+					for(int k = 1; k < (n/2); k++) {
+						a2[k-1] = c2[k] + c2[n-k];
+						b2[k-1] = I*(c2[k] - c2[n-k]);
+					}
 			    	ezfftb(&n, f2_linha, &a02, a2, b2, wsave2, ifac2);
 			    	//Desalocando memoria
 					free(a2);
 					free(b2);
 					free(wsave2);
 					free(ifac2);
+					free(c2);
+			    	c2 = NULL;
 					a2 = NULL;
 					b2 = NULL;
 					wsave2 = NULL;
