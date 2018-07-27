@@ -32,7 +32,7 @@ void fourier(double complex *c, double complex *f, double complex *x, int n);
 void anti_fourier(double complex *c, double complex *f, double complex *x, int n);
 void fftrec(double complex *c, double complex *f, int n, bool dir);
 void comprimir_sinal(double complex *c, double taxa_minima, int N);
-void passa_altas(double complex *c, int N, int freq_corte );
+void passa_altas(double complex *c, int N, int freq_corte, int preservar_amplitude);
 void passa_baixas(double complex *c, int N, int freq_corte);
 void passa_bandas(double complex *c, int N, int freq1, int freq2);
 
@@ -61,6 +61,7 @@ int main() {
     double S; // Parametro de compressao
     int tratar_dados; // Para o caso do numero de amostras nao ser uma potencia de 2
     int delta; // Parametro de tratamento de dados
+    int preservar_amplitude; // Usado no filtro passa-altas
 
 	// Variaveis especificas do fftpack4
 	double *a, *b, *a2, *b2;
@@ -180,15 +181,18 @@ int main() {
 			scanf("%d", &tipo_transformada);
 
 			// Tratamento de dados
-			if(tipo_transformada != 3 && tratar_dados == 1){
-				n -= delta; // As amostras em excesso serao cortadas
+			if(tipo_transformada != 3 && tratar_dados == 1) {
+				n -= delta; 
+				printf("\nEliminaram-se as amostras excedentes da ultima potencia de 2.\nO novo sinal possui %d amostras.\n", n);
 			} else if(tipo_transformada != 3 && tratar_dados == 2) {
-				n += delta; // As amostras faltantes serao preenchidas com a media das demais
-			}
-
-			// Caso n nao seja uma potencia de 2, mas o metodo seja fftpack4, nao ha tratamento de dados
-			if(tratar_dados != 0 && tipo_transformada == 3){
+				n += delta;
+				printf("\nPreecnheram-se as amostras com a media do sinal.\nO novo sinal possui %d amostras.\n", n);
+			} else if(tratar_dados != 0 && tipo_transformada == 3) {
+				// Caso n nao seja uma potencia de 2, mas o metodo seja fftpack4, nao ha tratamento de dados
+				printf("\nNao alterou-se a quantidade de amostras.\n");
 				tratar_dados = 0;
+			} else {
+				printf("\nNao alterou-se a quantidade de amostras.\n");
 			}
 
 			// Alocacao de vetores
@@ -208,8 +212,6 @@ int main() {
 			}
 			// Preenchimento dos vetores de acordo com o arquivo
 			ler_arquivo(nome_arquivo, n, x, f, f2, f_linha, f2_linha, tratar_dados, delta);
-			
-			printf("\nO sinal analisado tem %d amostras. \n", n);	
             break;
 
         default:
@@ -357,6 +359,7 @@ int main() {
 
 		switch(tipo_transformada) {
 			case 1:
+
 				//Desaloca os vetores que nao serao utilizados
 				free(f_linha);
 				free(f2_linha);
@@ -495,16 +498,21 @@ int main() {
 	    	printf("3 - Passa-bandas\n");
 	    	printf("Digite o filtro desejado: ");
 	    	scanf("%d", &tipo_filtro);
-	    	printf("O sinal analisado tem %d amostras. \n", n);	    
+	      
 	    	switch(tipo_filtro) {
 	    		case 1:
 	    			printf("Digite o parametro de corte K: ");
 	    			scanf("%d", &K);
-	    			passa_altas(c, n, K);
+	    			printf("\nDeseja preservar a amplitude media do sinal?\n");
+	    			printf("1 - Sim\n");
+	    			printf("2 - Nao\n");
+	    			printf("Resposta: ");
+	    			scanf("%d", &preservar_amplitude);
+	    			passa_altas(c, n, K, preservar_amplitude);
 	    			if (canais == 2) {
-	    				passa_altas(c2, n, K);
+	    				passa_altas(c2, n, K, preservar_amplitude);
 	    			}
-	    			printf("\nFiltro passa-altas aplicado.\n\n");
+	    			printf("\nFiltro passa-altas aplicado.\\n");
 	    			break;
 	    		case 2:
 	    			printf("Digite o parametro de corte K: ");
@@ -513,7 +521,7 @@ int main() {
 	    			if (canais == 2) {
 	    				passa_baixas(c2, n, K);
 	    			}
-	    			printf("\nFiltro passa-baixas aplicado.\n\n");
+	    			printf("\nFiltro passa-baixas aplicado.\\n");
 	    			break;
 	    		case 3:
 	    			printf("Digite o parametro de corte K1: ");
@@ -524,7 +532,7 @@ int main() {
 	    			if (canais == 2) {
 	    				passa_bandas(c2, n, K1, K2);
 	    			}
-	    			printf("\nFiltro passa-bandas aplicado.\n\n");
+	    			printf("\nFiltro passa-bandas aplicado.\\n");
 	    			break;
 
 	    	}
@@ -1077,12 +1085,17 @@ void comprimir_sinal(double complex *c, double taxa_minima, int N) {
 }
 
 
-void passa_altas(double complex *c, int N, int freq_corte ) {
+void passa_altas(double complex *c, int N, int freq_corte, int preservar_amplitude) {
     /* Filtro que zera todas as frequencias abaixo da frequencia de corte */
 
-    for (int k = freq_corte-1; k >= 0; k--) {
+    for (int k = freq_corte-1; k > 0; k--) {
         c[k] = 0;
     } 
+
+    // Caso se deseje preservar a amplitude media, o coeficiente c0 nao zera
+    if (freq_corte > 0 && preservar_amplitude == 2) {
+    	c[0] = 0;
+    }
 }
 
 
