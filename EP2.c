@@ -25,7 +25,7 @@ void imprimir_complexo_R(double complex *c, int N);
 
 /* >>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<< */
 int contar_amostras(char *nome_arquivo, int *sample_rate, int *canais, int *tratar_dados, int *delta, double *T);
-double* amostrar_frequencias(int n, double T);
+double* amostrar_frequencias(int n, double T, double complex *c);
 void ler_arquivo(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f2_linha, int tratar_dados, int delta);
 void escrever_arquivo(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double complex *f, double complex *f2);
 void escrever_arquivo_linha(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double *f_linha, double *f2_linha);
@@ -48,7 +48,7 @@ int main() {
 	double complex *x; // Vetor de amostras 
 	double complex *f; // Vetor de valores da função em cada amostra
 	double complex *f_rec; // Vetor de valores da função reconstituida pela antitransformada
-	double *w; // Vetor de frequencias
+	double *w; // Vetor de frequencias dominantes
 	int tipo_problema, tipo_transformada;
 	bool direta; // Usado na fftrec
 	clock_t tempo[2]; // Usado para medir o tempo de execucao
@@ -179,6 +179,7 @@ int main() {
 				default:
 					break;
 			}
+			printf("\nTempo de amostragem total: %lf segundos\n", T);
 			printf("\n---------------Analise de Fourier----------------\n");		    
 			printf("1 - Forma direta\n");
 			printf("2 - FFT Recursiva\n");
@@ -209,18 +210,17 @@ int main() {
 			f_linha = criar_vetor(n); 
 			f2_linha = criar_vetor(n);
 	    	c = criar_vetor_complexo(n);
-	    	w = amostrar_frequencias(n, T); // Alocacao do vetor de frequencias
+	    	
 
 	    	if(canais == 2) {
 				c2 = criar_vetor_complexo(n);
-				w2 = amostrar_frequencias(n, T);
 			} else {
 				//Desaloca-se os ponteiros que nao serao utilizados
 				c2 = NULL;
 				f2 = NULL;
 			}
+
 			// Preenchimento dos vetores de acordo com o arquivo
-			// Retorna o tempo de amostragem total
 			ler_arquivo(nome_arquivo, n, x, f, f2, f_linha, f2_linha, tratar_dados, delta);
             break;
 
@@ -491,7 +491,30 @@ int main() {
             	break;
         }
 
+
         // Analise de espectro
+		w = amostrar_frequencias(n, T, c); // Alocacao do vetor de frequencias
+		printf("\nFrequencias dominantes (Canal 1):\n");
+		for(int i = 0; i < 10; i++){
+				printf("%d - %.2lf Hz\n", i+1, w[i]);
+			}
+			printf("\n");
+		free(w);
+		w = NULL;
+		if(canais == 2) {
+			w2 = amostrar_frequencias(n, T, c2);
+			printf("\nFrequencias dominantes (Canal 2):\n");
+			for(int i = 0; i < 10; i++){
+				printf("%d - %lf Hz\n", i+1, w2[i]);
+			}
+			printf("\n");
+			free(w2);
+			w2 = NULL;
+			
+		} else {
+			//Desaloca-se os ponteiros que nao serao utilizados
+			w2 = NULL;
+		}
 
         // Aplicacao de Filtros
 
@@ -676,7 +699,7 @@ int main() {
 			    break;
         }
 
-        printf("Sinal recuperado com erro relativo = %.2lf", erro_relativo);
+        printf("Sinal recuperado com erro relativo = %.2lf (^1e-8 de precisao)", erro_relativo);
         printf("%%.\n\n");
 
         //Gravando arquivo
@@ -859,6 +882,7 @@ int contar_amostras(char *nome_arquivo, int *sample_rate, int *canais, int *trat
 	        sscanf(linha, "%lf %lf %lf", &var_temp2, &var_temp3, &var_temp4);
 	        n++;
 	    }
+	    *T = var_temp2; // Armazena o tempo maximo de amostragem
     }
 
     else {
@@ -893,15 +917,38 @@ int contar_amostras(char *nome_arquivo, int *sample_rate, int *canais, int *trat
     return n;
 }
 
-double* amostrar_frequencias(int n, double T) {
-    /* Cria o vetor de frequencias do sinal. */
+double* amostrar_frequencias(int n, double T, double complex *c) {
+    /* Retorna o vetor de frequencias dominantes do sinal. */
 
     double *w;
-    w = (double*) calloc(n, sizeof(double));
+    double complex *copia;
+    double amp_dominante;
+    int k_dominante, i, j;
 
-    for (int i = 0; i < n; i++){
-    	w[i] = (double)i/T;
+    // Copia do vetor de coeficientes
+    copia = (double complex*) calloc(n, sizeof(double complex));
+    for(int i = 0; i < n; i++){
+    	copia[i] = creal(c[i])+ I*cimag(c[i]);
     }
+
+    w = (double*) malloc(10* sizeof(double)); // vetor de frequencias
+    amp_dominante = 0;
+    for (j = 0; j < 10; j++){ // Itera ate obter 10 frequencias dominantes
+	    for (i = 0; i < n; i++){ // Obtem o coeficiente dominante
+	    	if(2*cabs(copia[i]) > amp_dominante){  
+	    		amp_dominante = 2*cabs(copia[i]); // Armazena a maior amplitude do vetor de coeficientes
+	    		k_dominante = i; // Armazena a posicao do coeficiente
+	    	}
+	    }
+	    //w[j] = amp_dominante; 
+	    w[j] = (double)k_dominante/T; // frequencia em hertz do coeficiente dominante da iteracao
+	    copia[k_dominante] = 0; // Zera a amplitude para que o proximo coeficiente dominante seja encontrado
+	    amp_dominante = 0;
+	}
+
+	//Desaloca vetor de copia
+	free(copia);
+	copia = NULL;
 
     return w;
 }
