@@ -24,7 +24,8 @@ void imprimir_complexo(double complex *c, int N);
 void imprimir_complexo_R(double complex *c, int N);
 
 /* >>>>>>>>>>> Funcoes de Transformada de Fourier <<<<<<<<<<< */
-int contar_amostras(char *nome_arquivo, int *sample_rate, int *canais, int *tratar_dados, int *delta);
+int contar_amostras(char *nome_arquivo, int *sample_rate, int *canais, int *tratar_dados, int *delta, double *T);
+double* amostrar_frequencias(int n, double T);
 void ler_arquivo(char *nome_arquivo, int n, double complex *x, double complex *f, double complex *f2, double *f_linha, double *f2_linha, int tratar_dados, int delta);
 void escrever_arquivo(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double complex *f, double complex *f2);
 void escrever_arquivo_linha(char *nome_arquivo, int sample_rate, int canais, int n, double complex *x, double *f_linha, double *f2_linha);
@@ -47,6 +48,7 @@ int main() {
 	double complex *x; // Vetor de amostras 
 	double complex *f; // Vetor de valores da função em cada amostra
 	double complex *f_rec; // Vetor de valores da função reconstituida pela antitransformada
+	double *w; // Vetor de frequencias
 	int tipo_problema, tipo_transformada;
 	bool direta; // Usado na fftrec
 	clock_t tempo[2]; // Usado para medir o tempo de execucao
@@ -58,6 +60,7 @@ int main() {
 	double complex *c2; // Vetor de coeficientes para o segundo canal
     double complex *f2; // Vetor de valores da função para o segundo canal
     double complex *f2_rec; // Vetor de valores da função reconstituida pela antitransformada
+    double *w2; // Vetor de frequencias para o segundo canal
     int canais, sample_rate; // Parametros fornecidos pelo arquivo
     int K, K1, K2; // Parametros de corte utilizados nos filtros
     double E; // Parametro de compressao
@@ -65,7 +68,7 @@ int main() {
     int delta; // Parametro de tratamento de dados
     int preservar_amplitude; // Usado no filtro passa-altas
     double taxa_compressao, taxa_compressao2, erro_relativo;
-    bool comprimido = false;
+    double T; // Tempo maximo de amostragem do sinal
 
 	// Variaveis especificas do fftpack4
 	double *a, *b, *a2, *b2;
@@ -161,7 +164,7 @@ int main() {
         	f2_rec = NULL;
 		    printf("Digite o nome do arquivo a ser analizado (com a terminacao .dat): ");
 		    scanf("%s", nome_arquivo);
-		    n = contar_amostras(nome_arquivo, &sample_rate, &canais, &tratar_dados, &delta); // Define o numero de amostras, canais e o tratamento dos dados
+		    n = contar_amostras(nome_arquivo, &sample_rate, &canais, &tratar_dados, &delta, &T); // Define o numero de amostras, canais e o tratamento dos dados
 
 		    switch(tratar_dados){
 				case 0:
@@ -176,8 +179,7 @@ int main() {
 				default:
 					break;
 			}
-
-		    printf("\n---------------Analise de Fourier----------------\n");
+			printf("\n---------------Analise de Fourier----------------\n");		    
 			printf("1 - Forma direta\n");
 			printf("2 - FFT Recursiva\n");
 			printf("3 - FFTPACK4\n");
@@ -207,14 +209,18 @@ int main() {
 			f_linha = criar_vetor(n); 
 			f2_linha = criar_vetor(n);
 	    	c = criar_vetor_complexo(n);
+	    	w = amostrar_frequencias(n, T); // Alocacao do vetor de frequencias
+
 	    	if(canais == 2) {
 				c2 = criar_vetor_complexo(n);
+				w2 = amostrar_frequencias(n, T);
 			} else {
 				//Desaloca-se os ponteiros que nao serao utilizados
 				c2 = NULL;
 				f2 = NULL;
 			}
 			// Preenchimento dos vetores de acordo com o arquivo
+			// Retorna o tempo de amostragem total
 			ler_arquivo(nome_arquivo, n, x, f, f2, f_linha, f2_linha, tratar_dados, delta);
             break;
 
@@ -485,6 +491,7 @@ int main() {
             	break;
         }
 
+        // Analise de espectro
 
         // Aplicacao de Filtros
 
@@ -564,7 +571,6 @@ int main() {
 	    	} else{
 	    		printf(".\n");
 	    	}
-	    	comprimido = true;
 	    } else if(escolha != 2) {
 	    	printf("Escolha invalida!\n");
 	    }
@@ -817,7 +823,10 @@ void imprimir_complexo(double complex *c, int N) {
     printf("\n");
 }
 
-int contar_amostras(char *nome_arquivo, int *sample_rate, int *canais, int *tratar_dados, int *delta) {
+int contar_amostras(char *nome_arquivo, int *sample_rate, int *canais, int *tratar_dados, int *delta, double *T) {
+	/* Le o arquivo para obter o numero de canais, taxa de amostragem, tempo maximo e informacoes sobre
+	a necessidade de tratamento de dados. Retorna o numero total de amostras*/
+
 	int n = 0;
 	int var_temp1;
 	double var_temp2, var_temp3, var_temp4;
@@ -840,8 +849,9 @@ int contar_amostras(char *nome_arquivo, int *sample_rate, int *canais, int *trat
     if(*canais == 1) {
     	while(fgets(linha, sizeof(linha), arquivo) != NULL) { // pega uma linha de até 512 caracteres. Null quando acabar as linhas 
 	        sscanf(linha, "%lf %lf", &var_temp2, &var_temp3);
-	        n++;  // contando o numero de dados 
+	        n++;  // contando o numero de dados
         }
+        *T = var_temp2; // Armazena o tempo maximo de amostragem
     }
 
     else if(*canais == 2) {
@@ -881,6 +891,19 @@ int contar_amostras(char *nome_arquivo, int *sample_rate, int *canais, int *trat
     }
 	
     return n;
+}
+
+double* amostrar_frequencias(int n, double T) {
+    /* Cria o vetor de frequencias do sinal. */
+
+    double *w;
+    w = (double*) calloc(n, sizeof(double));
+
+    for (int i = 0; i < n; i++){
+    	w[i] = (double)i/T;
+    }
+
+    return w;
 }
 
 
