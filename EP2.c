@@ -31,7 +31,7 @@ void escrever_arquivo_linha(char *nome_arquivo, int sample_rate, int canais, int
 void fourier(double complex *c, double complex *f, double complex *x, int n);
 void anti_fourier(double complex *c, double complex *f, double complex *x, int n);
 void fftrec(double complex *c, double complex *f, int n, bool dir);
-void comprimir_sinal(double complex *c, double taxa_minima, int N);
+double comprimir_sinal(double complex *c, double taxa_minima, int N);
 void passa_altas(double complex *c, int N, int freq_corte, int preservar_amplitude);
 void passa_baixas(double complex *c, int N, int freq_corte);
 void passa_bandas(double complex *c, int N, int freq1, int freq2);
@@ -58,10 +58,11 @@ int main() {
     double complex *f2_rec; // Vetor de valores da função reconstituida pela antitransformada
     int canais, sample_rate; // Parametros fornecidos pelo arquivo
     int K, K1, K2; // Parametros de corte utilizados nos filtros
-    double S; // Parametro de compressao
+    double E; // Parametro de compressao
     int tratar_dados; // Para o caso do numero de amostras nao ser uma potencia de 2
     int delta; // Parametro de tratamento de dados
     int preservar_amplitude; // Usado no filtro passa-altas
+    double taxa_compressao, taxa_compressao2;
 
 	// Variaveis especificas do fftpack4
 	double *a, *b, *a2, *b2;
@@ -374,6 +375,7 @@ int main() {
 				a2 = NULL;
 				b2 = NULL;
 
+				printf("\nCalculando Transformada de Fourier...\n");
 				tempo[0] = clock();
 				fourier(c, f, x, n);
 				free(f); // Limpa o vetor para usar novamente na antitransformada
@@ -401,6 +403,7 @@ int main() {
 				a2 = NULL;
 				b2 = NULL;
 
+				printf("\nCalculando Transformada de Fourier...\n");
 				tempo[0] = clock();
 				fftrec(c, f, n/2, true);
 				free(f); // Limpa o vetor para usar novamente na antitransformada
@@ -427,6 +430,7 @@ int main() {
 				free(f);
 				free(f2);
 
+				printf("\nCalculando Transformada de Fourier...\n");
 				tempo[0] = clock();
 				wsave = criar_vetor(3 * n + 15);
 				ifac = criar_vetor_int(8);
@@ -550,13 +554,19 @@ int main() {
 	    printf("Resposta: ");
 	    scanf("%d", &escolha);
 	    if (escolha == 1) {
-	    	printf("Digite o parametro de compressao S: ");
-	    	scanf("%lf", &S);
-	    	comprimir_sinal(c, S, n);
+	    	printf("\nDigite o parametro de compressao E: ");
+	    	scanf("%lf", &E);
+	    	taxa_compressao = comprimir_sinal(c, E, n);
+	    	printf("\nSinal comprimido em %.2lf", taxa_compressao);
+	    	printf("%%");
 	    	if(canais == 2){
-	    		comprimir_sinal(c2, S, n);
+	    		taxa_compressao2 = comprimir_sinal(c2, E, n);
+	    		printf(" no Canal 1 e em %.2lf", taxa_compressao2);
+	    		printf("%%");
+	    		printf(" no Canal 2.\n");
+	    	} else{
+	    		printf(".\n");
 	    	}
-	    	printf("\nSinal comprimido.\n\n");
 	    } else if(escolha != 2) {
 	    	printf("Escolha invalida!\n");
 	    }
@@ -566,6 +576,7 @@ int main() {
 
         switch(tipo_transformada) {
 			case 1:
+				printf("\nReconstituindo o sinal...\n");
 				tempo[0] = clock();
 				f = criar_vetor_complexo(n); // Reinicializa o vetor para obter o sinal reconstituido
 			    anti_fourier(c, f, x, n);
@@ -585,6 +596,7 @@ int main() {
 				break;
 
 			case 2:
+				printf("\nReconstituindo o sinal...\n");
 				tempo[0] = clock();
 				f = criar_vetor_complexo(n); // Reinicializa o vetor para obter o sinal reconstituido
 				fftrec(c, f, n/2, false);
@@ -604,6 +616,7 @@ int main() {
 			    break;
 
 			case 3:
+				printf("\nReconstituindo o sinal...\n");
 				tempo[0] = clock();
 				f_linha = criar_vetor(n); // Reinicializa o vetor para obter o sinal reconstituido
 				// Conversao do vetor de coeficientes c para a0, a b:
@@ -1070,18 +1083,24 @@ void fftrec(double complex *c, double complex *f, int n, bool dir) {
 }
 
 
-void comprimir_sinal(double complex *c, double taxa_minima, int N) {
+double comprimir_sinal(double complex *c, double limiar, int N) {
 	/* Zera as frequencias menos significativas do sinal, definidas pelo
 	dobro da amplitude de cada frequencia comparada a uma taxa minima */
 
     double amplitude = 0;
+    double taxa_compressao;
+    double n_comprimidos = 0;
 
     for (int k = 0; k < N; k++){
-        amplitude = 2 * cabs(c[k]);
-        if (amplitude < taxa_minima){
+        amplitude = 2* cabs(c[k]); // Amplitude = 2|ck|
+        if (amplitude < limiar){
             c[k] = 0;
+            n_comprimidos++;
         }
     }
+
+    taxa_compressao = (n_comprimidos/(double)N)*100; //Porcentagem de compressao
+    return taxa_compressao;
 }
 
 
