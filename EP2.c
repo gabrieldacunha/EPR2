@@ -35,6 +35,8 @@ double comprimir_sinal(double complex *c, double taxa_minima, int N);
 void passa_altas(double complex *c, int N, int freq_corte, int preservar_amplitude);
 void passa_baixas(double complex *c, int N, int freq_corte);
 void passa_bandas(double complex *c, int N, int freq1, int freq2);
+double calcular_erro(double complex *f, double complex *f_rec, double complex *f2, double complex *f2_rec, int n, int canais);
+double calcular_erro_linha(double *f_linha, double *f_rec_linha, double *f2_linha, double *f2_rec_linha, int n, int canais);
 
 /* ------------------------------------------------------------------------------------- */
 
@@ -62,14 +64,15 @@ int main() {
     int tratar_dados; // Para o caso do numero de amostras nao ser uma potencia de 2
     int delta; // Parametro de tratamento de dados
     int preservar_amplitude; // Usado no filtro passa-altas
-    double taxa_compressao, taxa_compressao2;
+    double taxa_compressao, taxa_compressao2, erro_relativo;
+    bool comprimido = false;
 
 	// Variaveis especificas do fftpack4
 	double *a, *b, *a2, *b2;
 	double a0, a02; 
 	int *ifac, *ifac2;
 	double *wsave, *wsave2;
-	double *f_linha, *f2_linha; 
+	double *f_linha, *f_rec_linha, *f2_linha, *f2_rec_linha; 
 
     printf("EP2 - Numerico\n\n");
     printf("1 - Teste a\n");
@@ -378,10 +381,8 @@ int main() {
 				printf("\nCalculando Transformada de Fourier...\n");
 				tempo[0] = clock();
 				fourier(c, f, x, n);
-				free(f); // Limpa o vetor para usar novamente na antitransformada
 				if(canais == 2) {
 					fourier(c2, f2, x, n);
-					free(f2); // Limpa o vetor para usar novamente na antitransformada
 				}
 				tempo[1] = clock();
 				tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
@@ -406,10 +407,8 @@ int main() {
 				printf("\nCalculando Transformada de Fourier...\n");
 				tempo[0] = clock();
 				fftrec(c, f, n/2, true);
-				free(f); // Limpa o vetor para usar novamente na antitransformada
 				if(canais == 2) {
 					fftrec(c2, f2, n/2, true);
-					free(f2); // Limpa o vetor para usar novamente na antitransformada
 				}
 				// Como indicado no algoritmo, faz-se necessaria a divisao dos coeficientes por 2N
 				for(int i = 0; i < n; i++){
@@ -451,7 +450,6 @@ int main() {
 				
 				ezffti(&n, wsave, ifac);  // inicializacao da fftpack4
 				ezfftf(&n, f_linha, &a0, a, b, wsave, ifac);  // transformada
-				free(f_linha); // Limpa o vetor para usar novamente na antitransformada
 				
 				// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 				c[0] = a0;
@@ -467,7 +465,6 @@ int main() {
 			
 					ezffti(&n, wsave2, ifac2);  // inicializacao da fftpack4
 					ezfftf(&n, f2_linha, &a02, a2, b2, wsave2, ifac2);  // transformada direta de fourier
-					free(f2_linha); // Limpa o vetor para usar novamente na antitransformada
 					// Conversao de valores do tipo a*cos() + b*sen() para coeficientes complexos do tipo ck
 					c2[0] = a02;
 					for(int i = 1; i < (n/2); i++) {
@@ -567,6 +564,7 @@ int main() {
 	    	} else{
 	    		printf(".\n");
 	    	}
+	    	comprimido = true;
 	    } else if(escolha != 2) {
 	    	printf("Escolha invalida!\n");
 	    }
@@ -578,14 +576,14 @@ int main() {
 			case 1:
 				printf("\nReconstituindo o sinal...\n");
 				tempo[0] = clock();
-				f = criar_vetor_complexo(n); // Reinicializa o vetor para obter o sinal reconstituido
-			    anti_fourier(c, f, x, n);
+				f_rec = criar_vetor_complexo(n); // Inicializa vetor para o sinal reconstituido
+			    anti_fourier(c, f_rec, x, n);
 			    //Desalocando memoria
 			    free(c);
 			    c = NULL;
 			    if(canais == 2){
-			    	f2 = criar_vetor_complexo(n); // Reinicializa o vetor para obter o sinal reconstituido
-			    	anti_fourier(c2, f2, x, n);
+			    	f2_rec = criar_vetor_complexo(n); // Inicializa vetor para o sinal reconstituido
+			    	anti_fourier(c2, f2_rec, x, n);
 			    	//Desalocando memoria
 			    	free(c2);
 			    	c2 = NULL;
@@ -593,19 +591,20 @@ int main() {
 			    tempo[1] = clock();
 			    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 			    printf("\nAntitransformada de Fourier aplicada em %g ms.\n\n", tempo_execucao);
+				erro_relativo = calcular_erro(f, f_rec, f2, f2_rec, n, canais);
 				break;
 
 			case 2:
 				printf("\nReconstituindo o sinal...\n");
 				tempo[0] = clock();
-				f = criar_vetor_complexo(n); // Reinicializa o vetor para obter o sinal reconstituido
-				fftrec(c, f, n/2, false);
+				f_rec = criar_vetor_complexo(n); // Inicializa vetor para o sinal reconstituido
+				fftrec(c, f_rec, n/2, false);
 				//Desalocando memoria
 			    free(c);
 			    c = NULL;
 				if(canais == 2){
-					f2 = criar_vetor_complexo(n); // Reinicializa o vetor para obter o sinal reconstituido
-			    	fftrec(c2, f2, n/2, false);
+					f2_rec = criar_vetor_complexo(n); // Inicializa vetor para o sinal reconstituido
+			    	fftrec(c2, f2_rec, n/2, false);
 			    	//Desalocando memoria
 			    	free(c2);
 			    	c2 = NULL;
@@ -613,12 +612,14 @@ int main() {
 			    tempo[1] = clock();	
 			    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 				printf("\nAntitransformada de Fourier (FFT Recursiva) aplicada em %g ms.\n\n", tempo_execucao);
+			    erro_relativo = calcular_erro(f, f_rec, f2, f2_rec, n, canais);
+
 			    break;
 
 			case 3:
 				printf("\nReconstituindo o sinal...\n");
 				tempo[0] = clock();
-				f_linha = criar_vetor(n); // Reinicializa o vetor para obter o sinal reconstituido
+				f_rec_linha = criar_vetor(n); // Inicializa vetor para o sinal reconstituido
 				// Conversao do vetor de coeficientes c para a0, a b:
 				a0 = c[0];
 				for(int k = 1; k < (n/2); k++) {
@@ -630,7 +631,7 @@ int main() {
 			    free(c);
 			    c = NULL;
 
-				ezfftb(&n, f_linha, &a0, a, b, wsave, ifac); 
+				ezfftb(&n, f_rec_linha, &a0, a, b, wsave, ifac); 
 				//Desalocando memoria
 				free(a);
 				free(b);
@@ -642,14 +643,14 @@ int main() {
 				ifac = NULL;
 
 			    if(canais == 2){
-			    	f2_linha = criar_vetor(n); // Reinicializa o vetor para obter o sinal reconstituido
+			    	f2_rec_linha = criar_vetor(n); // Inicializa vetor para o sinal reconstituido
 			    	// Conversao do vetor de coeficientes c para a0, a b:
 					a02 = c2[0];
 					for(int k = 1; k < (n/2); k++) {
 						a2[k-1] = c2[k] + c2[n-k];
 						b2[k-1] = I*(c2[k] - c2[n-k]);
 					}
-			    	ezfftb(&n, f2_linha, &a02, a2, b2, wsave2, ifac2);
+			    	ezfftb(&n, f2_rec_linha, &a02, a2, b2, wsave2, ifac2);
 			    	//Desalocando memoria
 					free(a2);
 					free(b2);
@@ -665,41 +666,85 @@ int main() {
 			    tempo[1] = clock();
 			    tempo_execucao = (tempo[1] - tempo[0]) * 1000.0 / CLOCKS_PER_SEC;
 			    printf("\nAntitransformada de Fourier (FFTPACK4) aplicada em %g ms.\n\n", tempo_execucao);
+			    erro_relativo = calcular_erro_linha(f_linha, f_rec_linha, f2_linha, f2_rec_linha, n, canais);
 			    break;
         }
 
+        printf("Sinal recuperado com erro relativo = %.2lf", erro_relativo);
+        printf("%%.\n\n");
 
         //Gravando arquivo
-    	printf("\nDigite o nome do arquivo para gravar o resultado (com a terminacao .dat): ");
-    	scanf("%s", nome_arquivo);
-    	// Escreve o resultado da analise no arquivo
-    	if(tipo_transformada != 3) {
-    		escrever_arquivo(nome_arquivo, sample_rate, canais, n, x, f, f2);
-    		// Desalocacao de memoria
-    		free(f);
-    		free(x);
-    		if(canais == 2) {
-    			free(f2);
-    		}
-    	}
-    	else {
-    		escrever_arquivo_linha(nome_arquivo, sample_rate, canais, n, x, f_linha, f2_linha);
-    		free(f_linha);
-    		free(x);
-    		if(canais == 2) {
-    			free(f2_linha);
-    		}
-    	}
-    	printf("\nArquivo gravado com sucesso!\n");
+        printf("Deseja gravar o resultado em um arquivo?\n");
+	    printf("1 - Sim\n");
+	    printf("2 - Nao\n");
+	    printf("Resposta: ");
+	    scanf("%d", &escolha);
+
+	    if(escolha == 1) {
+	    	printf("\nDigite o nome do arquivo para gravar o resultado (com a terminacao .dat): ");
+	    	scanf("%s", nome_arquivo);
+	    	// Escreve o resultado da analise no arquivo
+	    	if(tipo_transformada != 3) {
+	    		escrever_arquivo(nome_arquivo, sample_rate, canais, n, x, f_rec, f2_rec);
+	    		// Desalocacao de memoria
+	    		free(f);
+	    		free(f_rec);
+	    		free(x);
+	    		if(canais == 2) {
+	    			free(f2);
+	    			free(f2_rec);
+	    		}
+	    	}
+	    	else {
+	    		escrever_arquivo_linha(nome_arquivo, sample_rate, canais, n, x, f_rec_linha, f2_rec_linha);
+	    		free(f_linha);
+	    		free(f_rec_linha);
+	    		free(x);
+	    		if(canais == 2) {
+	    			free(f2_linha);
+	    			free(f2_rec_linha);
+	    		}
+	    	}
+	    	printf("\nArquivo gravado com sucesso!\n");
+
+	    } 
+
+	    else {
+	    	if(tipo_transformada != 3) {
+	    		// Desalocacao de memoria
+	    		free(f);
+	    		free(f_rec);
+	    		free(x);
+	    		if(canais == 2) {
+	    			free(f2);
+	    			free(f2_rec);
+	    		}
+	    	}
+	    	else {
+	    		free(f_linha);
+	    		free(f_rec_linha);
+	    		free(x);
+	    		if(canais == 2) {
+	    			free(f2_linha);
+	    			free(f2_rec_linha);
+	    		}
+	    	}
+	    }
+
+	    
 	    
     }
-
     // Desalocacao de ponteiros
 	x = NULL;
 	f = NULL;
 	f2 = NULL;
 	f_linha = NULL;
 	f2_linha = NULL;
+	f_rec = NULL;
+	f2_rec = NULL;
+	f_rec_linha = NULL;
+	f2_rec_linha = NULL;
+
 	return 0;
 }
 
@@ -1079,7 +1124,6 @@ void fftrec(double complex *c, double complex *f, int n, bool dir) {
 			}
 		}
 	}
-	
 }
 
 
@@ -1139,3 +1183,80 @@ void passa_bandas(double complex *c, int N, int freq1, int freq2) {
     }
 }
 
+double calcular_erro(double complex *f, double complex *f_rec, double complex *f2, double complex *f2_rec, int n, int canais){
+	/*Fornece o erro relativo entre o sinal reconstituido e o sinal original*/
+
+	double erro_relativo, temp;
+	erro_relativo = 0;
+
+	for(int i = 0; i < n; i++) {
+		if(cabs(f[i]) != 0) {
+			temp = (cabs(f_rec[i]) - cabs(f[i]))/cabs(f[i]);
+		} else if((cabs(f_rec[i]) - cabs(f[i])) < 0.00000001){ // Sinal recuperado igual ao original com precisao de 10^(-6)
+			temp = 0;
+		} else { //f[i] = 0 != f_rec[i]
+			temp = 1;
+		}
+
+		if(temp > erro_relativo){
+			erro_relativo = temp;
+		}
+	}
+
+	if(canais == 2) {
+		for(int i = 0; i < n; i++) {
+			if(cabs(f2[i]) != 0) {
+				temp =(cabs(f2_rec[i]) - cabs(f2[i]))/cabs(f2[i]);
+			} else if((cabs(f2_rec[i]) - cabs(f2[i])) < 0.00000001){ // Sinal recuperado igual ao original com precisao de 10^(-6)
+				temp = 0;
+			} else { //f2[i] = 0 != f2_rec[i]
+				temp = 1;
+			}
+
+			if(temp > erro_relativo){
+				erro_relativo = temp;
+			}
+		}
+	}
+
+	return erro_relativo;
+}
+
+double calcular_erro_linha(double *f_linha, double *f_rec_linha, double *f2_linha, double *f2_rec_linha, int n, int canais){
+	/*Fornece o erro relativo entre o sinal reconstituido e o sinal original*/
+
+	double erro_relativo, temp;
+	erro_relativo = 0;
+
+	for(int i = 0; i < n; i++) {
+		if(f_linha[i] != 0) {
+			temp = fabs(f_rec_linha[i] - f_linha[i]) / fabs(f_linha[i]);
+		} else if(fabs(f_rec_linha[i] - f_linha[i]) < 0.00000001){ // Sinal recuperado igual ao original com precisao de 10^(-6)
+			temp = 0;
+		} else { //f_linha[i] = 0 != f_rec_linha[i]
+			temp = 1;
+		}
+
+		if(temp > erro_relativo){
+			erro_relativo = temp;
+		}
+	}
+
+	if(canais == 2){
+		for(int i = 0; i < n; i++) {
+			if(f2_linha[i] != 0) {
+				temp = fabs(f2_rec_linha[i]-f2_linha[i]) / fabs(f2_linha[i]);
+			} else if(fabs(f2_rec_linha[i] - f2_linha[i]) < 0.00000001){ // Sinal recuperado igual ao original com precisao de 10^(-6)
+				temp = 0;
+			} else { //f2_linha[i] = 0 != f2_rec_linha[i]
+				temp = 1;
+			}
+
+			if(temp > erro_relativo){
+				erro_relativo = temp;
+			}
+		}
+	}
+
+	return erro_relativo;
+}
